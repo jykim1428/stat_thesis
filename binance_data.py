@@ -9,7 +9,7 @@ import os
 plt.rcParams["font.family"] = "Malgun Gothic"
 plt.rcParams["axes.unicode_minus"] = False
 
-conn = sqlite3.connect(r"C:\Users\ilove\Downloads\crypto_market.db") # 사용자 환경에 맞게 수정 필요
+conn = sqlite3.connect(r"C:\Users\ilove\Downloads\crypto_market_copy.db") # 사용자 환경에 맞게 수정 필요
 df = pd.read_sql("SELECT * FROM ohlcv_data", conn, parse_dates=["Open_time"])
 conn.close()
 output_dir = r"C:\Users\ilove\OneDrive\바탕 화면\outputs" # 사용자 환경에 맞게 수정 필요
@@ -95,78 +95,36 @@ else:
     print(f"→ 중복 제거 후 row 수: {len(df)}")
 
 # =====================================================
-# 3-1. 커버리지 이상 징후 점검 (신규)
-#      -> 8종목 시작일이 완전히 동일하게 나오는 것이 실제 상장일 차이를
-#         반영하지 못하는 것인지, 초기 구간이 패딩/평탄화된 데이터인지 점검
+# 3-1. 시작일 일관성 점검
 # =====================================================
 
 print("\n" + "=" * 70)
-print("3-1. 커버리지 이상 징후 점검")
+print("3-1. 시작일 일관성 점검")
 print("=" * 70)
 
-ohlc_cols_present = set(["Open", "High", "Low", "Close"]).issubset(df.columns)
-vol_col_present = "Volume" in df.columns
+start_dates = (
+    df.groupby("Symbol")["Open_time"]
+      .min()
+      .reset_index()
+      .rename(columns={"Open_time": "start_date"})
+)
 
-anomaly_records = []
-for symbol, g in df.groupby("Symbol"):
-    g = g.sort_values("Open_time")
-    first_rows = g.head(48)  # 시작 후 48시간(2일) 구간 점검
+print(start_dates.to_string(index=False))
 
-    flat_close = first_rows["Close"].nunique() <= 1
-    zero_volume = (first_rows["Volume"] == 0).all() if vol_col_present else None
-    ohlc_equal = (
-        (first_rows["Open"] == first_rows["Close"])
-        & (first_rows["Close"] == first_rows["High"])
-        & (first_rows["High"] == first_rows["Low"])
-    ).all() if ohlc_cols_present else None
-
-    expected_hours = int((g["Open_time"].max() - g["Open_time"].min()).total_seconds() // 3600) + 1
-    actual_rows = len(g)
-    missing_hours = expected_hours - actual_rows
-
-    anomaly_records.append({
-        "Symbol": symbol,
-        "start": g["Open_time"].min(),
-        "first_48h_flat_close": flat_close,
-        "first_48h_zero_volume": zero_volume,
-        "first_48h_ohlc_equal": ohlc_equal,
-        "expected_hours": expected_hours,
-        "actual_rows": actual_rows,
-        "missing_hours": missing_hours,
-    })
-
-anomaly_df = pd.DataFrame(anomaly_records)
-print(anomaly_df.to_string(index=False))
-
-flat_flag = anomaly_df["first_48h_flat_close"].fillna(False)
-zero_vol_flag = anomaly_df["first_48h_zero_volume"].fillna(False) if vol_col_present else pd.Series([False] * len(anomaly_df))
-ohlc_flag = anomaly_df["first_48h_ohlc_equal"].fillna(False) if ohlc_cols_present else pd.Series([False] * len(anomaly_df))
-
-suspicious = anomaly_df[flat_flag | zero_vol_flag | ohlc_flag]
-
-if len(suspicious) > 0:
-    print(f"\n⚠️ 경고: {len(suspicious)}개 종목에서 시작 직후 구간이 평탄/거래량0/OHLC동일 -> "
-          f"실거래가 아닌 패딩 데이터일 가능성: {suspicious['Symbol'].tolist()}")
+if start_dates["start_date"].nunique() == 1:
+    print("\n모든 자산의 시작일이 동일합니다.")
+    print("→ 현재 데이터는 동일 기간을 기준으로 수집된 것으로 확인됩니다.")
 else:
-    print("\n초기 구간 평탄화/패딩 의심 신호는 없음 (첫 48시간 기준)")
-
-if anomaly_df["start"].nunique() == 1:
-    print(
-        "\n⚠️ 참고: 8개 종목의 시작일이 모두 완전히 동일합니다.\n"
-        "   실제 바이낸스 상장일은 종목마다 다릅니다 (예: SOL/AVAX가 BTC/ETH보다 늦게 상장).\n"
-        "   이 결과가 그대로 유지된다면 두 가지 가능성 중 하나입니다:\n"
-        "     (a) DB를 만들 때 이미 공통 구간으로 잘라서 저장했거나\n"
-        "     (b) 데이터 수집기가 상장 이전 구간을 임의의 값으로 채워 넣었을 가능성\n"
-        "   -> DB를 생성한 수집 스크립트(크롤러/API 호출 부분)를 열어서\n"
-        "      각 심볼의 조회 시작 파라미터가 고정값인지 확인하고,\n"
-        "      필요하면 거래소 API에서 실제 상장일을 별도로 조회해 대조하세요."
-    )
-else:
-    print("\n종목별 시작일이 서로 다름 -> 정상적으로 상장일 차이가 반영된 것으로 보임")
+    print("\n자산별 시작일이 서로 다릅니다.")
+    print("→ 공통 학습 구간은 가장 늦은 시작일 이후로 설정해야 합니다.")
 
 # =====================================================
-# 3-2. 산출물 저장: 정합성 리포트 (커버리지 + 갭 + 이상징후)
+# 3-2. 산출물 저장: 정합성 리포트
 # =====================================================
+
+print("\n" + "=" * 70)
+print("3-2. 산출물 저장: 정합성 리포트")
+print("=" * 70)
 
 coverage.to_csv(os.path.join(output_dir, "coverage_report.csv"), index=False, encoding="utf-8-sig")
 
@@ -177,12 +135,12 @@ else:
         os.path.join(output_dir, "gap_report.csv"), index=False, encoding="utf-8-sig"
     )
 
-anomaly_df.to_csv(os.path.join(output_dir, "coverage_anomaly_check.csv"), index=False, encoding="utf-8-sig")
+start_dates.to_csv(os.path.join(output_dir, "start_date_check.csv"),index=False,encoding="utf-8-sig")
 
 print("\n산출물 저장 완료:")
 print(" - coverage_report.csv        (자산별 커버리지)")
 print(" - gap_report.csv             (시간 갭 목록)")
-print(" - coverage_anomaly_check.csv (커버리지 이상 징후 점검)")
+print(" - start_date_check.csv (자산별 시작일 확인)")
 
 # =====================================================
 # 4. pivot + dropna → 실제 학습 가능 구간
@@ -413,7 +371,7 @@ skew_kurt.to_csv(os.path.join(output_dir, "skew_kurtosis_by_asset.csv"), encodin
 print("\n산출물 저장 완료:")
 print(" - coverage_report.csv           (자산별 커버리지)")
 print(" - gap_report.csv                (시간 갭 목록)")
-print(" - coverage_anomaly_check.csv    (커버리지 이상 징후 점검)")
+print(" - start_date_check.csv          (자산별 시작일 확인)")
 print(" - regime_definition_table.csv   (국면 정의표, 날짜 명시)")
 print(" - regime_validation.csv         (국면 날짜 검증 결과)")
 print(" - train_val_test_split.csv      (국면별 분할 규칙)")
