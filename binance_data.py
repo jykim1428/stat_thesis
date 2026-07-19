@@ -280,20 +280,33 @@ print(regime_validation_df.to_string(index=False))
 expect_positive = {"하락": False, "횡보": None, "상승": True}
 print("\n국면 이름과 실제 수익률 방향 일치 여부 점검:")
 mismatch_found = False
+
+# 횡보 판정 기준: 하락/상승 국면 수익률 절대값 중 더 작은 값보다 작아야 "진짜 횡보"
+other_abs_returns = regime_validation_df.loc[
+    regime_validation_df["regime"] != "횡보", "avg_total_return_pct"
+].abs()
+flat_threshold = other_abs_returns.min() if not other_abs_returns.empty else None
+
 for _, r in regime_validation_df.iterrows():
     name = r["regime"]
     actual_positive = r["avg_total_return_pct"] > 0
     exp = expect_positive.get(name)
-    if exp is None:
-        note = "횡보 구간 -> 평균 수익률 절대값이 하락/상승 구간보다 작은지 육안 비교 필요"
+
+    if exp is None:  # 횡보
+        if flat_threshold is not None and abs(r["avg_total_return_pct"]) < flat_threshold:
+            note = "횡보 조건 충족 ✅ (하락/상승보다 변동폭 작음)"
+        else:
+            note = "⚠️ 불일치: 횡보라 하기엔 수익률 변동폭이 큼 -> 날짜 재조정 필요"
+            mismatch_found = True
     elif exp == actual_positive:
         note = "이름과 실제 방향 일치 ✅"
     else:
         note = "⚠️ 불일치: 이름과 실제 평균 수익률 방향이 반대 -> 날짜 재조정 필요"
         mismatch_found = True
+
     print(f"  [{name}] {r['start'].date()} ~ {r['end'].date()}  "
           f"평균 총수익률 {r['avg_total_return_pct']:.2f}%  ({note})")
-
+    
 if mismatch_found:
     print(
         "\n⚠️ 하나 이상의 국면에서 이름과 실제 방향이 불일치합니다.\n"
@@ -301,7 +314,7 @@ if mismatch_found:
         "   저장된 {symbol}_regime_plot.png를 다시 열어 육안으로도 확인하세요."
     )
 else:
-    print("\n모든 국면에서 이름과 실제 방향이 일치함 (횡보 구간은 별도 육안 확인 권장)")
+    print("\n모든 국면에서 이름과 실제 방향이 일치함")
 
 regime_validation_df.to_csv(
     os.path.join(output_dir, "regime_validation.csv"), index=False, encoding="utf-8-sig"
