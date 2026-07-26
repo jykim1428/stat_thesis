@@ -27,6 +27,11 @@ CLOSE_COL = "Close"
 #   "side_2023":  ("2023-01-01", "2023-10-15", "test"),
 #   "bull_2024":  ("2023-10-16", "2024-03-14", "test"),
 REGIMES = {
+    "bull_2021":  ("2021-01-01", "2021-11-09", "train"),
+    "bear_2022":  ("2021-11-10", "2023-01-01", "train"),
+    "side_2023":  ("2023-01-02", "2023-10-15", "val"),
+    "bull_2024":  ("2023-10-16", "2025-01-01", "test"),
+    "choppy_2025": ("2025-01-02", "2025-12-31", "test"),
 }
 
 VOL_WINDOWS = {"24h": 24, "7d": 24 * 7}   # rolling vol 창
@@ -44,6 +49,7 @@ def load_close():
         df[TS_COL] = pd.to_datetime(ts)
     df[CLOSE_COL] = pd.to_numeric(df[CLOSE_COL], errors="coerce")
     wide = df.pivot(index=TS_COL, columns=SYM_COL, values=CLOSE_COL).dropna()
+    wide = wide.loc[:"2025-12-31"]
     return wide.sort_index()
 
 
