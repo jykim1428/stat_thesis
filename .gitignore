@@ -1,4 +1,21 @@
-.env
+
+# Python
 __pycache__/
 *.pyc
+
+# Virtual Environment
+.venv/
+
+# Environment Variables
+# 여기다가 실제 키 받아서 넣으면 됨. secret key도 있기 때문에 깃허브에 업로드하지는 않겠음. 
+.env
+
+# Database
 *.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+

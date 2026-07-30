@@ -1,0 +1,21 @@
+{
+  "dataset_name": "crypto_ppo_feature_dataset",
+  "version": "v1.0",
+  "created_at": "2026-07-27T15:06:29.445001+00:00",
+  "total_rows": 349896,
+  "total_columns": 19,
+  "missing_values": 0,
+  "duplicate_rows": 0,
+  "regime_distribution": {
+    "bull_2024": 85248,
+    "bear_2022": 80256,
+    "choppy_2025": 69704,
+    "bull_2021": 59592,
+    "side_2023": 55096
+  },
+  "split_distribution": {
+    "test": 154952,
+    "train": 139848,
+    "val": 55096
+  }
+}
