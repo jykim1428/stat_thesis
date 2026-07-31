@@ -14,7 +14,10 @@ if not API_KEY or not API_SECRET:
 
 client = Client(API_KEY, API_SECRET)
 
-SYMBOLS = ["BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT"]  # 필요한 종목으로 수정
+SYMBOLS = [
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "AVAXUSDT",
+    "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT",
+]  # 프로젝트 전체 8종목 (필요 시 수정)
 INTERVAL = Client.KLINE_INTERVAL_1HOUR
 START_STR = "2021-01-01"  # 조회 시작일 (종목별 상장일 이전이면 자동으로 상장일부터 반환됨)
 DB_PATH = "data/raw/binance_ohlcv.db"  # 리포 루트에서 실행 전제
@@ -43,11 +46,12 @@ def fetch_symbol(symbol: str) -> pd.DataFrame:
 def main():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
-    for symbol in SYMBOLS:
+    # 재실행해도 중복 append 없이 항상 SYMBOLS 전체로 새로 채워지도록 첫 종목만 replace, 나머지는 append
+    for i, symbol in enumerate(SYMBOLS):
         df = fetch_symbol(symbol)
-        df.to_sql("ohlcv_data", conn, if_exists="append", index=False)
+        df.to_sql("ohlcv_data", conn, if_exists="replace" if i == 0 else "append", index=False)
     conn.close()
-    print(f"\n저장 완료: {DB_PATH}")
+    print(f"\n저장 완료: {DB_PATH} (SYMBOLS 전체 {len(SYMBOLS)}종목, idempotent)")
 
 
 if __name__ == "__main__":
