@@ -17,7 +17,7 @@ client = Client(API_KEY, API_SECRET)
 SYMBOLS = ["BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT"]  # 필요한 종목으로 수정
 INTERVAL = Client.KLINE_INTERVAL_1HOUR
 START_STR = "2021-01-01"  # 조회 시작일 (종목별 상장일 이전이면 자동으로 상장일부터 반환됨)
-DB_PATH = os.path.join(os.path.dirname(__file__), "crypto_market.db")
+DB_PATH = "data/raw/binance_ohlcv.db"  # 리포 루트에서 실행 전제
 
 COLUMNS = [
     "Open_time", "Open", "High", "Low", "Close", "Volume",

@@ -1,8 +1,9 @@
 """
 Week 2: 시장 국면(Regime) 정의 (CryptoAgent)
+리포 루트에서 실행: python src/cryptoagent/pipeline/Week2_regime_definition.py
 
 [1단계] REGIMES를 비워둔 채 실행
-        -> regime_explore.png 생성. 누적수익률 + rolling vol 보고 경계 날짜를 눈으로 확정.
+        -> data/processed/regime_explore.png 생성. 누적수익률 + rolling vol 보고 경계 날짜를 눈으로 확정.
 [2단계] 확정한 날짜를 REGIMES에 채우고 재실행
         -> 국면 경계가 그려진 그림 + 국면 정의표 + 국면별/자산별 왜도·첨도 + train/val/test 집계.
 
@@ -14,7 +15,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # ── 설정 ─────────────────────────────────────────────
-DB_PATH   = "crypto_market.db"
+DB_PATH   = "data/raw/binance_ohlcv.db"
 TS_COL    = "Open_time"
 SYM_COL   = "Symbol"
 CLOSE_COL = "Close"
@@ -92,8 +93,8 @@ for name, (s, e, split) in REGIMES.items():
                va="top", fontsize=8)
 
 plt.tight_layout()
-plt.savefig("regime_explore.png", dpi=130)
-print("저장: regime_explore.png")
+plt.savefig("data/processed/regime_explore.png", dpi=130)
+print("저장: data/processed/regime_explore.png")
 
 # ── 왜도·첨도 (heavy-tail 근거) ────────────────────────
 def tail_stats(r):
@@ -106,7 +107,7 @@ def tail_stats(r):
 print("\n=== 전체기간 자산별 왜도·첨도 (시간봉 로그수익률) ===")
 overall = tail_stats(logret)
 print(overall.round(3))
-overall.to_csv("tail_stats_overall.csv")
+overall.to_csv("data/processed/tail_stats_overall.csv")
 
 # ── REGIMES 채워졌을 때: 국면 정의표 + 국면별 통계 ──────
 if REGIMES:
@@ -131,14 +132,14 @@ if REGIMES:
     regime_table = pd.DataFrame(rows)
     print("\n=== 국면 정의표 ===")
     print(regime_table.to_string(index=False))
-    regime_table.to_csv("regime_definition.csv", index=False)
+    regime_table.to_csv("data/processed/regime_definition.csv", index=False)
 
     tail_r = pd.concat(tail_by_regime, ignore_index=True)
-    tail_r.to_csv("tail_stats_by_regime.csv", index=False)
+    tail_r.to_csv("data/processed/tail_stats_by_regime.csv", index=False)
 
     print("\n=== train/val/test 분포 ===")
     print(regime_table.groupby("split")[["days", "bars"]].sum())
-    print("\n저장: regime_definition.csv, tail_stats_by_regime.csv")
+    print("\n저장: data/processed/regime_definition.csv, data/processed/tail_stats_by_regime.csv")
 else:
     print("\n[1단계] REGIMES가 비어있음 → 탐색 그림만 생성.")
-    print("regime_explore.png 보고 경계 날짜 확정 후 REGIMES 채워서 재실행.")
+    print("data/processed/regime_explore.png 보고 경계 날짜 확정 후 REGIMES 채워서 재실행.")

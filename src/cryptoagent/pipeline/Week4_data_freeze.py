@@ -1,6 +1,7 @@
 """
 Week 4: 최종 학습 데이터셋 구축 및 데이터 동결 (Final Dataset Build & Freeze)
 CryptoAgent - 암호화폐 포트폴리오 최적화 PPO 프로젝트
+리포 루트에서 실행: python src/cryptoagent/pipeline/Week4_data_freeze.py
 
 파이프라인 순서
 --------------
@@ -8,10 +9,10 @@ Week1(무결성 검증) -> Week2(국면 정의) -> Week3(피처 생성) -> Week4
 
 이 파일이 하는 일
 ------------------
-1. Week3 산출물(features.parquet) 로드
-2. Week2 산출물(regime_definition.csv)을 기준으로 각 행에 regime/split 매핑
+1. Week3 산출물(data/processed/features.parquet) 로드
+2. Week2 산출물(data/processed/regime_definition.csv)을 기준으로 각 행에 regime/split 매핑
 3. 데이터 검증 (행/열 개수, 결측치, 중복, regime/split 분포) + Summary Report 출력
-4. SQLite(data/crypto_market.db)에 feature_table로 저장 (재실행 시 REPLACE)
+4. SQLite(data/raw/crypto_market_features.db)에 feature_table로 저장 (재실행 시 REPLACE)
 5. results/data_dictionary.csv 생성 (컬럼별 설명/타입/단위)
 6. results/freeze_metadata.json 생성 (데이터셋 버전 동결 메타데이터)
 7. 최종 완료 로그 출력
@@ -37,9 +38,9 @@ import pandas as pd
 # ------------------------------------------------------------------
 # 경로 설정 (상수로 관리 - 필요 시 이 블록만 수정)
 # ------------------------------------------------------------------
-FEATURES_PARQUET_PATH = "features.parquet"                  # Week3 산출물
-REGIME_CSV_PATH = "regime_definition.csv"               # Week2 산출물
-DB_PATH = "data/crypto_market.db"
+FEATURES_PARQUET_PATH = "data/processed/features.parquet"                  # Week3 산출물
+REGIME_CSV_PATH = "data/processed/regime_definition.csv"               # Week2 산출물
+DB_PATH = "data/raw/crypto_market_features.db"
 FEATURE_TABLE_NAME = "feature_table"
 
 RESULTS_DIR = "results"

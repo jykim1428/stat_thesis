@@ -1,11 +1,12 @@
 """
 Week 3: 피처 생성 (CryptoAgent)
+리포 루트에서 실행: python src/cryptoagent/pipeline/Week3_feature_generation.py
 
 pandas-ta로 종목별 기술지표(RSI, MACD, ATR, OBV, SMA, EMA)를 계산.
 스케일링은 하지 않음 (train-only fit 원칙 때문에 학습 단계로 미룸) — 원본 피처만 저장.
 
 설정 4줄(DB_PATH, TS_COL, SYM_COL, PRICE_COLS)만 본인 환경에 맞게.
-산출물: features.parquet (long format: Open_time, Symbol, ... raw OHLCV, ... 지표들)
+산출물: data/processed/features.parquet (long format: Open_time, Symbol, ... raw OHLCV, ... 지표들)
 """
 import sqlite3
 import numpy as np
@@ -13,7 +14,7 @@ import pandas as pd
 import pandas_ta as ta
 
 # ── 설정 ─────────────────────────────────────────────
-DB_PATH    = "crypto_market.db"
+DB_PATH    = "data/raw/binance_ohlcv.db"
 TS_COL     = "Open_time"
 SYM_COL    = "Symbol"
 PRICE_COLS = ["Open", "High", "Low", "Close", "Volume"]
@@ -90,10 +91,10 @@ def main():
         print(f"  - {c}")
 
     feats = feats.sort_values([SYM_COL, TS_COL]).reset_index(drop=True)
-    feats.to_parquet("features.parquet", index=False)
-    print(f"\n저장 완료: features.parquet  shape={feats.shape}")
+    feats.to_parquet("data/processed/features.parquet", index=False)
+    print(f"\n저장 완료: data/processed/features.parquet  shape={feats.shape}")
 
-    with open("feature_list.md", "w", encoding="utf-8") as f:
+    with open("docs/feature_list.md", "w", encoding="utf-8") as f:
         f.write("# Week 3 피처 목록\n\n")
         f.write(f"- 원본 OHLCV: {PRICE_COLS}\n")
         f.write(f"- 기술지표 ({len(feature_cols)}개): {feature_cols}\n\n")

@@ -8,10 +8,13 @@ PortfolioOptimizationEnv가 기대하는 컬럼명(date, tic, close/high/low)과
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pandas as pd
 
-DB_PATH = "data/crypto_market.db"
+# src/cryptoagent/envs/adapter.py 기준 리포 루트로 4단계 위 (envs -> cryptoagent -> src -> root)
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DB_PATH = REPO_ROOT / "data" / "raw" / "crypto_market_features.db"
 TABLE_NAME = "feature_table"
 
 COLUMN_RENAME = {

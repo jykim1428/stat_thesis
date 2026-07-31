@@ -5,14 +5,15 @@
 
 ## 데이터 연결
 
-`adapter.py`가 Week4에서 동결한 `data/crypto_market.db`의 `feature_table`을
+`adapter.py`가 Week4에서 동결한 `data/raw/crypto_market_features.db`의 `feature_table`을
 env가 기대하는 컬럼명(`date`, `tic`, `close`/`high`/`low`)으로 변환한다.
 
+리포 루트에서 실행한다고 가정. `pip install -r requirements.txt` 직후
+`pip install -e .`를 한 번 실행해두면(`pyproject.toml` 참고) 아래처럼 어디서든 import 가능:
+
 ```python
-import sys
-sys.path.insert(0, "finrl_env")
-from adapter import load_env_ready_df
-from env_portfolio_optimization import PortfolioOptimizationEnv
+from cryptoagent.envs.adapter import load_env_ready_df
+from cryptoagent.envs.env_portfolio_optimization import PortfolioOptimizationEnv
 
 df = load_env_ready_df(split="train")  # "train" / "val" / "test" / None(전체)
 
@@ -26,8 +27,8 @@ env = PortfolioOptimizationEnv(
 )
 ```
 
-`data/crypto_market.db`는 `.gitignore` 처리되어 있으므로, 없으면 먼저
-`python Week4_data_freeze.py`로 로컬 재생성.
+`data/raw/crypto_market_features.db`는 `.gitignore` 처리되어 있으므로, 없으면 먼저
+`python src/cryptoagent/pipeline/Week4_data_freeze.py`로 로컬 재생성.
 
 ## 확인된 shape (8종목, time_window=50 기준)
 

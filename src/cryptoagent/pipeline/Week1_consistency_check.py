@@ -1,15 +1,15 @@
 """
 Week 1: 데이터 정합성 점검 (CryptoAgent)
-VSCode에서 .db 파일과 같은 위치에 두고 실행.
+리포 루트에서 실행: python src/cryptoagent/pipeline/Week1_consistency_check.py
 설정 4줄(DB_PATH, TS_COL, SYM_COL, CLOSE_COL)만 본인 스키마에 맞게 수정.
-산출물: consistency_report.md, coverage.csv, gaps.csv
+산출물: docs/consistency_report.md, data/processed/coverage.csv, data/processed/gaps.csv
 """
 import sqlite3
 import pandas as pd
 import numpy as np
 
 # ── 설정 (본인 환경에 맞게 수정) ─────────────────────
-DB_PATH   = "crypto_market.db"   # .db 경로
+DB_PATH   = "data/raw/binance_ohlcv.db"   # .db 경로
 TS_COL    = "Open_time"         # 시각 컬럼명
 SYM_COL   = "Symbol"             # 심볼 컬럼명
 CLOSE_COL = "Close"              # 종가 컬럼명
@@ -93,7 +93,7 @@ if len(common):
     print(f"공통 길이 : {len(common)} 봉 (~{len(common)/24:.0f}일)\n")
 
 # 6. 리포트 저장
-with open("consistency_report.md", "w", encoding="utf-8") as f:
+with open("docs/consistency_report.md", "w", encoding="utf-8") as f:
     f.write("# 데이터 정합성 리포트\n\n")
     f.write("## 1. 자산별 커버리지\n\n" + md_table(cov) + "\n\n")
     f.write(f"## 2. 시간 갭 (1h 아닌 간격): 총 {len(gaps)}건\n\n")
@@ -106,7 +106,7 @@ with open("consistency_report.md", "w", encoding="utf-8") as f:
         f.write(f"- 공통 종료: {common.index.max()}\n")
         f.write(f"- 길이: {len(common)} 봉 (~{len(common)/24:.0f}일)\n")
 
-cov.to_csv("coverage.csv")
-gaps.to_csv("gaps.csv", index=False)
+cov.to_csv("data/processed/coverage.csv")
+gaps.to_csv("data/processed/gaps.csv", index=False)
 con.close()
-print("저장 완료: consistency_report.md, coverage.csv, gaps.csv")
+print("저장 완료: docs/consistency_report.md, data/processed/coverage.csv, data/processed/gaps.csv")
