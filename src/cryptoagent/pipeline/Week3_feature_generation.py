@@ -8,6 +8,7 @@ pandas-ta로 종목별 기술지표(RSI, MACD, ATR, OBV, SMA, EMA)를 계산.
 설정 4줄(DB_PATH, TS_COL, SYM_COL, PRICE_COLS)만 본인 환경에 맞게.
 산출물: data/processed/features.parquet (long format: Open_time, Symbol, ... raw OHLCV, ... 지표들)
 """
+import os
 import sqlite3
 import numpy as np
 import pandas as pd
@@ -30,6 +31,10 @@ EMA_WINDOWS = [20, 50]
 
 
 def load_ohlcv():
+    if not os.path.exists(DB_PATH):
+        raise FileNotFoundError(
+            f"{DB_PATH}를 찾을 수 없습니다. fetch_binance_data.py를 먼저 실행했는지 확인하세요."
+        )
     con = sqlite3.connect(DB_PATH)
     df = pd.read_sql(f"SELECT * FROM ohlcv_data", con)
     con.close()

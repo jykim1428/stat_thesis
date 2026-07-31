@@ -4,6 +4,7 @@ Week 1: 데이터 정합성 점검 (CryptoAgent)
 설정 4줄(DB_PATH, TS_COL, SYM_COL, CLOSE_COL)만 본인 스키마에 맞게 수정.
 산출물: docs/consistency_report.md, data/processed/coverage.csv, data/processed/gaps.csv
 """
+import os
 import sqlite3
 import pandas as pd
 import numpy as np
@@ -25,6 +26,10 @@ def md_table(df):
         return "```\n" + df.to_string() + "\n```"
 
 
+if not os.path.exists(DB_PATH):
+    raise FileNotFoundError(
+        f"{DB_PATH}를 찾을 수 없습니다. fetch_binance_data.py를 먼저 실행했는지 확인하세요."
+    )
 con = sqlite3.connect(DB_PATH)
 
 # 0. 스키마 확인 ─ 위 설정 컬럼명과 다르면 이 출력 보고 고칠 것

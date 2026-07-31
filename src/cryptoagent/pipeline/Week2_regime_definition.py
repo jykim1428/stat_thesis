@@ -9,6 +9,7 @@ Week 2: 시장 국면(Regime) 정의 (CryptoAgent)
 
 설정 4줄(DB_PATH, TS_COL, SYM_COL, CLOSE_COL)만 본인 환경에 맞게.
 """
+import os
 import sqlite3
 import numpy as np
 import pandas as pd
@@ -40,6 +41,10 @@ VOL_WINDOWS = {"24h": 24, "7d": 24 * 7}   # rolling vol 창
 
 
 def load_close():
+    if not os.path.exists(DB_PATH):
+        raise FileNotFoundError(
+            f"{DB_PATH}를 찾을 수 없습니다. fetch_binance_data.py를 먼저 실행했는지 확인하세요."
+        )
     con = sqlite3.connect(DB_PATH)
     df = pd.read_sql(f"SELECT {TS_COL},{SYM_COL},{CLOSE_COL} FROM ohlcv_data", con)
     con.close()
