@@ -51,7 +51,7 @@ TIME_COL = "Open_time"
 SYMBOL_COL = "Symbol"
 
 DATASET_NAME = "crypto_ppo_feature_dataset"
-DATASET_VERSION = "v1.0"
+DATASET_VERSION = "v1.1"
 
 
 # ------------------------------------------------------------------

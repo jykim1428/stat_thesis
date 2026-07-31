@@ -5,7 +5,7 @@ High,float64,Highest price in the interval,USDT
 Low,float64,Lowest price in the interval,USDT
 Close,float64,Closing price,USDT
 Volume,float64,Traded volume in the interval,base asset units
-Symbol,object,Trading pair symbol,categorical
+Symbol,str,Trading pair symbol,categorical
 RSI_14,float64,Relative Strength Index (14),0-100 (unitless)
 MACD_12_26_9,float64,"MACD line (12, 26)",USDT
 MACDh_12_26_9,float64,MACD histogram,USDT
