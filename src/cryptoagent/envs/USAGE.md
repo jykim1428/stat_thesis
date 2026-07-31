@@ -40,6 +40,10 @@ env = PortfolioOptimizationEnv(
 
 9월 트랜스포머/LSTM feature extractor는 `(batch, 3, 8, 50)` → 원하는 시퀀스 형태로
 reshape하는 것이 전제. `features` 리스트를 늘리면 (RSI, MACD 등 추가) 첫 번째 차원이 커짐.
+`adapter.py`가 `load_env_ready_df()`에서 이미 모든 Week3 기술지표 컬럼(`RSI_14`,
+`MACD_12_26_9`, `ATR_14`, `OBV`, `SMA_20/50`, `EMA_20/50` 등)을 원본 이름 그대로
+통과시키므로, `PortfolioOptimizationEnv(..., features=[...])`에 원하는 컬럼명을
+추가하기만 하면 됨 — adapter를 따로 고칠 필요 없음.
 
 ## SB3 PPO에 물리기 (8월 2주차용)
 
@@ -68,3 +72,6 @@ model.learn(total_timesteps=128)
   동작 자체엔 영향 없음 (2026-07-30 기준 확인).
 - `env_portfolio_optimization.py`는 최상단에서 `quantstats`를 강제 import함 (`requirements.txt`에 포함됨).
 - `check_env(raw_env)` (shimmy 래핑 전)는 gymnasium 상속 요구 때문에 무조건 실패함 — 정상, shimmy로 감싼 뒤 학습하면 됨.
+- `env.step()`은 에피소드가 끝날 때마다(`terminal=True`) `cwd/results/rl/`에 그림 3~4장을 `matplotlib`으로 저장함.
+  train split 기준 한 에피소드가 17,432스텝(`time_window=50`)이라 `n_steps`가 짧은 롤아웃 도중엔 거의 안 걸리지만,
+  `total_timesteps`가 에피소드 길이를 넘으면 파일 IO가 끼어들어 학습 속도에 영향을 줄 수 있음 — 대량 학습 시 참고.
