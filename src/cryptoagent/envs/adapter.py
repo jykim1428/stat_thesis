@@ -43,3 +43,15 @@ def load_env_ready_df(split: str | None = None) -> pd.DataFrame:
     df["date"] = pd.to_datetime(df["date"])
     # PortfolioOptimizationEnv는 order_df=True일 때 자체적으로 date, tic 기준 정렬함
     return df.reset_index(drop=True)
+
+
+def patch_seed_method(env) -> None:
+    """PortfolioOptimizationEnv에 gym.Env.seed()를 붙여준다.
+
+    gym==0.26.2부터 Env 베이스 클래스가 seed()를 제거해서, shimmy.GymV21CompatibilityV0가
+    reset(seed=...)를 호출할 때 AttributeError가 난다. PortfolioOptimizationEnv엔 구식
+    관례의 _seed()가 남아있으므로 그걸 호출하는 seed()만 얹어준다. SB3 PPO(..., seed=...)로
+    재현성을 확보하려면 shimmy로 감싸기 전에 이 함수를 호출해야 한다.
+    """
+    if not hasattr(env, "seed"):
+        env.seed = env._seed

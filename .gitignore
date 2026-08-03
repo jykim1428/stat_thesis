@@ -15,6 +15,11 @@ build/
 # Database
 *.db
 
+# 실험 산출물 (재실행으로 재생성됨 - 모델 가중치, 백테스트 원시 결과)
+results/ppo_mlp/
+# PortfolioOptimizationEnv가 에피소드 종료마다 자동 저장하는 그림 (cwd=./ 기본값)
+results/rl/
+
 # Jupyter
 .ipynb_checkpoints/
 
