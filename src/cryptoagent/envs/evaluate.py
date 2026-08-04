@@ -1,7 +1,6 @@
 """
 공용 평가 모듈 (3주차)
 ====================
-공용 인터페이스 스펙(착수 전 5분 문서)에 맞춘 evaluate() 함수.
 
 PPO 백테스트가 끝나면 나오는 아래 형태의 DataFrame을 그대로 입력으로 받는다:
 
@@ -13,7 +12,7 @@ PPO 백테스트가 끝나면 나오는 아래 형태의 DataFrame을 그대로 
 env.step() 종료 시 반환되는 metrics_df(date/returns/rewards/portfolio_values)와
 env._final_weights를 그대로 합치면 이 형태가 된다 (env_portfolio_optimization.py L228-239 참고).
 
-- 아직 준영의 실제 백테스트 결과가 없으므로, 더미 데이터로 함수부터 완성.
+- 더미 데이터로 함수부터 완성.
 - 나중에 실제 metrics_df로 교체(실연결)만 하면 됨.
 
 의존성: pandas, numpy, empyrical-reloaded (import는 `empyrical`로 동일)
