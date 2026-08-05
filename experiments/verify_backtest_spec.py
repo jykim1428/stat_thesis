@@ -1,6 +1,6 @@
 """
 공용 스펙 DataFrame 독립 검증 스크립트 
-사용법: python scripts/verify_backtest_spec.py results/ppo_mlp/backtest_test.csv
+사용법: python experiments/verify_backtest_spec.py results/ppo_mlp/backtest_test.csv
 
 train_ppo_mlp.py의 sanity_check()와는 별개로, 저장된 CSV 결과물 자체를
 다시 읽어서 독립적으로 검증한다. 9월 트랜스포머/LSTM 결과물도
