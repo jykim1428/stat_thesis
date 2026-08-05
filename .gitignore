@@ -1,4 +1,3 @@
-
 # Python
 __pycache__/
 *.pyc
@@ -20,9 +19,13 @@ results/ppo_mlp/
 # PortfolioOptimizationEnv가 에피소드 종료마다 자동 저장하는 그림 (cwd=./ 기본값)
 results/rl/
 
+# W&B 로컬 로그 (재실행 시 재생성됨, 8월 2주차 은아 추가)
+wandb/
+# SB3 tensorboard 로그 (train()의 tensorboard_log 인자로 생성, 재실행 시 재생성됨)
+runs/
+
 # Jupyter
 .ipynb_checkpoints/
 
 # macOS
 .DS_Store
-
