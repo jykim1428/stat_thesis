@@ -15,8 +15,7 @@ env._final_weights를 그대로 합치면 이 형태가 된다 (env_portfolio_op
 - 더미 데이터로 함수부터 완성.
 - 나중에 실제 metrics_df로 교체(실연결)만 하면 됨.
 
-의존성: pandas, numpy, empyrical-reloaded (import는 `empyrical`로 동일)
-    pip install empyrical-reloaded --break-system-packages
+의존성: pandas, numpy, empyrical-reloaded (import는 `empyrical`로 동일, requirements.txt에 포함됨)
 """
 
 import numpy as np

@@ -30,3 +30,9 @@ python-dotenv==1.1.1
 # 8월 2주차: W&B 연동 (train_ppo_mlp.py의 tensorboard_log/callback 파라미터 의존성)
 wandb==0.28.1
 tensorboard==2.21.0
+
+# 8월 2~3주차: 공용 평가 모듈 (evaluate.py 의존성)
+# 원본 PyPI의 `empyrical`은 Python 3.13에서 설치 자체가 실패함
+# (configparser.SafeConfigParser 제거로 인한 빌드 에러). 같은 empyrical
+# 네임스페이스로 import되는 유지보수 포크를 대신 씀 - 코드는 무수정.
+empyrical-reloaded==0.5.12
