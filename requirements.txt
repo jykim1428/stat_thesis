@@ -26,3 +26,7 @@ quantstats==0.0.81
 
 python-binance==1.0.19
 python-dotenv==1.1.1
+
+# 8월 2주차: W&B 연동 (train_ppo_mlp.py의 tensorboard_log/callback 파라미터 의존성)
+wandb==0.28.1
+tensorboard==2.21.0
