@@ -31,6 +31,10 @@ python-dotenv==1.1.1
 wandb==0.28.1
 tensorboard==2.21.0
 
+# 8월 4주차: 전통 벤치마크 (Markowitz, Risk Parity ERC) 의존성
+scipy==1.16.3
+PyPortfolioOpt==1.6.0
+
 # 8월 2~3주차: 공용 평가 모듈 (evaluate.py 의존성)
 # 원본 PyPI의 `empyrical`은 Python 3.13에서 설치 자체가 실패함
 # (configparser.SafeConfigParser 제거로 인한 빌드 에러). 같은 empyrical
