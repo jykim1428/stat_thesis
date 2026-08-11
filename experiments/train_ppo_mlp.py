@@ -28,6 +28,10 @@ env._final_weights는 reset() 시 초기값 1개로 시작해 매 step()마다 a
 ------
 - results/ppo_mlp/backtest_test.csv : 공용 스펙 백테스트 결과 (test split, .gitignore 처리됨)
 - results/ppo_mlp/ppo_mlp.zip       : 학습된 SB3 모델 (.gitignore 처리됨)
+- runs/{run.id}/                    : SB3 tensorboard 로그 (.gitignore 처리됨)
+- W&B run (project=cryptoagent-ppo) : 학습 로그(loss/entropy/approx_kl 등),
+  train()의 tensorboard_log/callback 파라미터로 연결됨.
+  로컬 wandb/ 폴더도 생성되나 .gitignore 처리됨 - 결과는 W&B 웹사이트에서 확인
 """
 
 from __future__ import annotations
@@ -37,6 +41,8 @@ import os
 import numpy as np
 import pandas as pd
 import shimmy
+import wandb
+from wandb.integration.sb3 import WandbCallback
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 
@@ -71,12 +77,19 @@ def make_env(split: str) -> PortfolioOptimizationEnv:
     return env
 
 
-def train(train_env: PortfolioOptimizationEnv) -> PPO:
+def train(
+    train_env: PortfolioOptimizationEnv,
+    tensorboard_log: str | None = None,
+    callback=None,
+) -> PPO:
     """train split으로 PPO(MlpPolicy) 학습.
 
     B(W&B) 담당자는 여기 vec_env를 만든 뒤 PPO(...) 생성자에
     tensorboard_log= 를 지정하고 model.learn(..., callback=WandbCallback())로
     콜백만 얹으면 된다 - 이 함수 시그니처/구조는 유지.
+
+    (8월 2주차 은아 구현) tensorboard_log, callback 파라미터를 추가해
+    위 안내대로 연결. 원본 로직(vec_env 생성, PPO 하이퍼파라미터)은 미변경.
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=train_env)
     vec_env = DummyVecEnv([lambda: gym_env])
@@ -86,8 +99,9 @@ def train(train_env: PortfolioOptimizationEnv) -> PPO:
         vec_env,
         verbose=1,
         seed=SEED,
+        tensorboard_log=tensorboard_log,
     )
-    model.learn(total_timesteps=TOTAL_TIMESTEPS)
+    model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=callback)
     return model
 
 
@@ -134,9 +148,30 @@ def sanity_check(backtest_df: pd.DataFrame) -> None:
 def main() -> None:
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
+    run = wandb.init(
+        entity="choieuna0711-student",
+        project="cryptoagent-ppo",
+        name="ppo_mlp_sanity_baseline",
+        config={
+            "total_timesteps": TOTAL_TIMESTEPS,
+            "seed": SEED,
+            "time_window": TIME_WINDOW,
+            "features": FEATURES,
+            "initial_amount": INITIAL_AMOUNT,
+        },
+        sync_tensorboard=True,
+    )
+
     print("=== [1/3] train split으로 PPO(MLP) 학습 ===")
     train_env = make_env("train")
-    model = train(train_env)
+    model = train(
+        train_env,
+        tensorboard_log=f"runs/{run.id}",
+        callback=WandbCallback(
+            gradient_save_freq=100,
+            model_save_path=f"{RESULTS_DIR}/wandb_models/{run.id}",
+        ),
+    )
     model.save(MODEL_PATH)
     print(f"모델 저장: {MODEL_PATH}")
 
@@ -148,6 +183,7 @@ def main() -> None:
 
     print("\n=== [3/3] Sanity Check ===")
     sanity_check(backtest_df)
+    run.finish()
 
 
 if __name__ == "__main__":
