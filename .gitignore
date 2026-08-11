@@ -31,3 +31,4 @@ runs/
 .DS_Store
 results/benchmarks/
 
+results/comparison_table.csv
