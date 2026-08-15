@@ -53,7 +53,7 @@ class PositionalEncoding(nn.Module):
 class TransformerFeaturesExtractor(BaseFeaturesExtractor):
     """PortfolioOptimizationEnv observation (feature, asset, time) -> feature vector.
 
-    train_ppo_mlp.py에서 이렇게 연결:
+    train_ppo_transformer.py에서 이렇게 연결:
 
         policy_kwargs = dict(
             features_extractor_class=TransformerFeaturesExtractor,
@@ -74,6 +74,9 @@ class TransformerFeaturesExtractor(BaseFeaturesExtractor):
         dim_feedforward: int = 64,
         dropout: float = 0.1,
     ):
+        if d_model % n_heads != 0:
+            raise ValueError(f"d_model({d_model})은 n_heads({n_heads})로 나누어 떨어져야 합니다.")
+
         n_features, n_assets, lookback = observation_space.shape
         features_dim = n_assets * d_model
         super().__init__(observation_space, features_dim=features_dim)
