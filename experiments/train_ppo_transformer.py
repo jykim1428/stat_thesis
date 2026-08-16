@@ -30,6 +30,8 @@ import os
 import numpy as np
 import pandas as pd
 import shimmy
+import wandb
+from wandb.integration.sb3 import WandbCallback
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 
@@ -69,11 +71,18 @@ def make_env(split: str) -> PortfolioOptimizationEnv:
     return env
 
 
-def train(train_env: PortfolioOptimizationEnv) -> PPO:
+def train(
+    train_env: PortfolioOptimizationEnv,
+    tensorboard_log: str | None = None,
+    callback=None,
+) -> PPO:
     """train split으로 PPO(Transformer policy) 학습.
 
     train_ppo_mlp.py의 train()과 동일 구조 - MlpPolicy 대신
     policy_kwargs로 features_extractor_class만 교체.
+
+    (9월 1주차 은아 구현) tensorboard_log, callback 파라미터를 추가해
+    train_ppo_mlp.py와 동일한 방식으로 WandbCallback 연결.
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=train_env)
     vec_env = DummyVecEnv([lambda: gym_env])
@@ -86,13 +95,14 @@ def train(train_env: PortfolioOptimizationEnv) -> PPO:
     )
 
     model = PPO(
-        "MlpPolicy",  # feature extractor만 트랜스포머, 이후 정책/가치 헤드는 SB3 기본 MLP
+        "MlpPolicy",
         vec_env,
         policy_kwargs=policy_kwargs,
         verbose=1,
         seed=SEED,
+        tensorboard_log=tensorboard_log,
     )
-    model.learn(total_timesteps=TOTAL_TIMESTEPS)
+    model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=callback)
     return model
 
 
@@ -136,10 +146,34 @@ def sanity_check(backtest_df: pd.DataFrame) -> None:
 def main() -> None:
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
+    run = wandb.init(
+        entity="choieuna0711-student",
+        project="cryptoagent-ppo",
+        name=f"ppo_transformer_d{D_MODEL}_h{N_HEADS}_l{N_LAYERS}_lb{TIME_WINDOW}",
+        config={
+            "total_timesteps": TOTAL_TIMESTEPS,
+            "seed": SEED,
+            "time_window": TIME_WINDOW,
+            "d_model": D_MODEL,
+            "n_heads": N_HEADS,
+            "n_layers": N_LAYERS,
+            "features": FEATURES,
+            "initial_amount": INITIAL_AMOUNT,
+        },
+        sync_tensorboard=True,
+    )
+
     print(f"=== [1/3] train split으로 PPO(Transformer, d_model={D_MODEL}, "
           f"heads={N_HEADS}, layers={N_LAYERS}, lookback={TIME_WINDOW}) 학습 ===")
     train_env = make_env("train")
-    model = train(train_env)
+    model = train(
+        train_env,
+        tensorboard_log=f"runs/{run.id}",
+        callback=WandbCallback(
+            gradient_save_freq=100,
+            model_save_path=f"{RESULTS_DIR}/wandb_models/{run.id}",
+        ),
+    )
     model.save(MODEL_PATH)
     print(f"모델 저장: {MODEL_PATH}")
 
@@ -151,6 +185,7 @@ def main() -> None:
 
     print("\n=== [3/3] Sanity Check ===")
     sanity_check(backtest_df)
+    run.finish() 
 
 
 if __name__ == "__main__":
