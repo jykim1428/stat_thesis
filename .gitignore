@@ -17,6 +17,7 @@ build/
 # 실험 산출물 (재실행으로 재생성됨 - 모델 가중치, 백테스트 원시 결과)
 results/ppo_mlp/
 results/ppo_transformer/
+results/ppo_lstm/
 # PortfolioOptimizationEnv가 에피소드 종료마다 자동 저장하는 그림 (cwd=./ 기본값)
 results/rl/
 
@@ -33,3 +34,4 @@ runs/
 results/benchmarks/
 
 results/comparison_table.csv
+
