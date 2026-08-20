@@ -5,22 +5,42 @@ env의 기존 정규화(by_previous_time, 1차 - 시점 간 비율만 계산, �
 누수 없음 검증됨)는 그대로 유지하고, 그 위에 train 구간 통계로 fit한
 표준화(2차)를 추가하는 wrapper.
 
-
 배경
 ----
 관측값이 1.0 근처 좁은 범위에 몰려있고 자산별 변동성 차이가 있어,
 신경망 학습 안정성을 위해 자산별 표준화를 시도.
 
-검증 결과 (train stats를 test split에 적용, 실사용 시나리오 기준)
-------------------------------------------------------------
-    TEST split 전체 평균: -0.0068
-    TEST split 전체 표준편차: 0.6842 (1.0 아님)
-    자산별 표준편차: 0.552 ~ 0.810 (약 1.47배 차이)
+재현성 - seed 고정 (팀 리뷰 반영)
+--------------------------------
+compute_train_stats()는 env를 끝까지 진행시키기 위해 action_space.
+sample()로 랜덤 액션을 씀 (observation은 action과 무관하게 시장 가격
+데이터로만 결정되므로 - env_portfolio_optimization.py의
+_get_state_and_info_from_time_index() 확인 - 어떤 액션을 넣어도
+observation 시퀀스 자체는 동일함). 다만 초기 버전에는 이 랜덤 액션의
+seed가 고정되어 있지 않아 실행마다 결과가 미세하게 달라지는 문제가
+있었음 (팀 리뷰에서 1.47배/1.59배 불일치로 지적받음). action_space.
+seed(seed)로 고정 후 3회 반복 실행으로 완전히 동일한 결과가 나옴을
+확인함 (mean/std/최종 백테스트 수치까지 소수점 단위로 일치).
 
-train으로 fit한 통계를 test에 적용하면 완벽히 0/1로 맞춰지지는 않음.
-train/test 시기의 실제 시장 변동성 차이(자연스러운 분포 시프트)로
-추정됨. 표준화 전(자산별 최대 4.3배 차이, 단일 스냅샷 기준) 대비
-격차는 줄었으나(1.47배) 완전히 해소되지는 않는 것으로 확인.
+검증 결과 (train stats를 test split에 적용, seed=42 고정, 실사용 시나리오 기준)
+------------------------------------------------------------------------
+    TEST split 자산별 표준편차: 0.5520 ~ 0.8095
+    최대/최소 비율: 약 1.47배
+
+train으로 fit한 통계를 test에 적용하면 완벽히 1.0으로 맞춰지지는
+않음. train/test 시기의 실제 시장 변동성 차이(자연스러운 분포 시프트)
+로 추정됨.
+
+참고 - 계산 방식별 수치 비교 (혼동 방지)
+----------------------------------------
+1. obs 단일 스냅샷(50h 창 1개) 기준: 최대 약 4.3배 차이
+   - 최초 조사 시 make_env('train').reset() 한 번으로 확인한 값
+2. train 전체 통계(seed 고정 전) 기준: 최대 약 2.4배 차이
+   - train 구간 전체 순회, 다만 이때는 seed 미고정 상태였음
+3. train stats를 test split에 적용 (seed=42 고정, 최종 결론값):
+   약 1.47배 차이
+표준화 적용 후(3) 자산 간 격차가 표준화 전(1) 대비 줄어들었으나
+완전히 해소되지는 않는 것으로 결론.
 
 gym.Wrapper를 상속한 이유
 -------------------------
@@ -28,22 +48,22 @@ gym.Wrapper를 상속한 이유
 있어 (action_space 등 속성 누락 가능) gym.Wrapper 상속으로 변경, 표준
 방식을 따름.
 
+검증 완료 사항
+--------------
+- shimmy.GymV21CompatibilityV0로 감싸 reset()/step() 정상 동작 확인
+- obs shape (3, 8, 50) 정상 유지 (broadcasting 오류 없음)
+- seed 고정 후 3회 반복 실행, 완전히 동일한 결과 재현 확인
+
 주의 - 아직 팀 논의/검증 전 단계
 --------------------------------
 이 wrapper는 작성만 해두고 아직 기본 학습 스크립트(train_ppo_mlp.py 등)
 에는 연결하지 않음. 적용 범위(MLP 포함 여부)와 시점(지금 vs 3주차)을
 팀과 논의 후 결정 예정.
 
-검증 완료 사항
---------------
-- shimmy.GymV21CompatibilityV0로 감싸 reset()/step() 정상 동작 확인
-- obs shape (3, 8, 50) 정상 유지 (broadcasting 오류 없음)
-- train stats를 test split에 적용한 결과는 위 "검증 결과" 참고
-
 사용법 (적용하기로 결정된 경우)
 --------------------------------
     train_env = make_env("train")
-    stats = compute_train_stats(train_env)   # train으로만 fit
+    stats = compute_train_stats(train_env, seed=42)   # train으로만 fit
     train_env = TrainStandardizeWrapper(train_env, stats=stats)
 
     test_env = make_env("test")
@@ -86,8 +106,13 @@ class TrainStandardizeWrapper(gym.Wrapper):
         return (obs - self.stats["mean"]) / self.stats["std"]
 
 
-def compute_train_stats(train_env) -> dict:
+def compute_train_stats(train_env, seed: int = 42) -> dict:
     """train split 전체를 순회하며 자산별(feature별) 평균/표준편차를 계산.
+
+    action_space.seed(seed)로 랜덤 액션을 고정 - 팀 리뷰에서 재현값
+    불일치(1.47배 vs 1.59배)가 지적됐고, 원인이 action_space.sample()의
+    시드 미고정이었음을 확인해 추가함. 이제 항상 동일한 seed로 실행하면
+    동일한 결과가 재현됨.
 
     반드시 train_env(split="train")에만 사용할 것 - val/test env로
     호출하면 데이터 누수가 됨.
@@ -95,6 +120,7 @@ def compute_train_stats(train_env) -> dict:
     mean/std는 obs와 동일하게 (feature, asset, 1) 3차원으로 반환해
     (feature, asset, time) 형태의 obs와 정확히 broadcasting되도록 함.
     """
+    train_env.action_space.seed(seed)
     obs = train_env.reset()
     all_obs = [np.array(obs)]
 
@@ -105,10 +131,9 @@ def compute_train_stats(train_env) -> dict:
         obs, done = step_result[0], step_result[2]
         all_obs.append(np.array(obs))
 
-    stacked = np.stack(all_obs)  # (steps, feature, asset, time)
+    stacked = np.stack(all_obs)
 
-    # obs는 (feature, asset, time) 3차원이므로 mean/std도 3차원으로 맞춤
-    mean = stacked.mean(axis=(0, 3), keepdims=True)[0]  # (feature, asset, 1)
+    mean = stacked.mean(axis=(0, 3), keepdims=True)[0]
     std = stacked.std(axis=(0, 3), keepdims=True)[0] + 1e-8
 
     return {"mean": mean, "std": std}
