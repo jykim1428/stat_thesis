@@ -16,10 +16,6 @@ columns:
     portfolio_values  # 스텝별 포트폴리오 가치
     weights           # 스텝별 비중 벡터 (자산 8개 + 현금, 리스트)
 
-env._date_memory / env._portfolio_return_memory / env._asset_memory["final"] /
-env._final_weights는 reset() 시 초기값 1개로 시작해 매 step()마다 append되므로
-전부 길이가 같다 (PortfolioOptimizationEnv 내부 구현, env_portfolio_optimization.py 참고).
-
 주의: CSV로 저장하면 weights 컬럼은 "[1.0, 0.0, ...]" 형태의 문자열이 된다.
 다시 읽을 때는 ast.literal_eval(row["weights"])로 리스트로 복원할 것
 (pandas.read_csv만으로는 str로 남는다).
@@ -28,10 +24,34 @@ env._final_weights는 reset() 시 초기값 1개로 시작해 매 step()마다 a
 ------
 - results/ppo_mlp/backtest_test.csv : 공용 스펙 백테스트 결과 (test split, .gitignore 처리됨)
 - results/ppo_mlp/ppo_mlp.zip       : 학습된 SB3 모델 (.gitignore 처리됨)
-- runs/{run.id}/                    : SB3 tensorboard 로그 (.gitignore 처리됨)
 - W&B run (project=cryptoagent-ppo) : 학습 로그(loss/entropy/approx_kl 등),
   train()의 tensorboard_log/callback 파라미터로 연결됨.
   로컬 wandb/ 폴더도 생성되나 .gitignore 처리됨 - 결과는 W&B 웹사이트에서 확인
+
+오버피팅 모니터링
+------------------
+EvalCallback으로 학습 도중 val split 성과를 주기적으로 측정해 W&B에
+기록함 (src/cryptoagent/training/overfitting_monitor.py).
+
+eval_freq=10240(=5*rollout 크기)으로 설정 - 2048마다 평가하면 val
+에피소드 길이가 길어 평가 비용이 학습 비용 대비 과도해짐을 트랜스포머
+스크립트에서 스모크 테스트로 확인, 10,240으로 조정함 (50,000 스텝
+기준 약 5회 평가).
+
+train episode가 PPO rollout(2048)보다 길어 rollout/ep_rew_mean과
+eval/mean_reward를 직접 비교하기는 어려움. 대신 학습 안정성
+(approx_kl, explained_variance 등)과 일반화(eval/mean_reward, val
+Sharpe/MDD/turnover)를 각각 관찰하는 것으로 목표를 재정의함. 평가
+지점이 적을 때 단기 등락만으로 오버피팅을 단정하지 않고, 충분한
+학습 구간에 걸친 추세로 판단할 것.
+
+val 환경도 train과 동일한 API 변환 경로(GymV21CompatibilityV0 ->
+Monitor)를 거치도록 함 - SB3의 "Monitor wrapper 없음" 경고 제거 및
+경로 일관성 확보.
+
+train_ppo_transformer.py에서 먼저 검증됨: EvalCallback 추가 전/후로
+동일 seed 실행 시 최종 결과값이 완전히 동일함을 확인 - 모니터링
+추가가 실제 학습 결과에 영향을 주지 않고 관찰만 한다는 것을 확인함.
 """
 
 from __future__ import annotations
@@ -44,10 +64,13 @@ import shimmy
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import CallbackList
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 
 from cryptoagent.envs.adapter import load_env_ready_df, patch_seed_method
 from cryptoagent.envs.env_portfolio_optimization import PortfolioOptimizationEnv
+from cryptoagent.training.overfitting_monitor import make_eval_callback
 
 # ── 설정 ─────────────────────────────────────────────
 TIME_WINDOW = 50
@@ -56,6 +79,9 @@ INITIAL_AMOUNT = 100_000
 
 TOTAL_TIMESTEPS = 50_000  # sanity-check용 기본값. 본 실험 규모는 8월 4주차 이후 조정
 SEED = 42
+
+EVAL_FREQ = 10_240  # 5 * rollout(2048). val 에피소드가 길어 2048 주기는 비효율적
+                     # (트랜스포머 스모크 테스트로 확인)
 
 RESULTS_DIR = "results/ppo_mlp"
 MODEL_PATH = os.path.join(RESULTS_DIR, "ppo_mlp.zip")
@@ -73,8 +99,20 @@ def make_env(split: str) -> PortfolioOptimizationEnv:
         features=FEATURES,
         time_window=TIME_WINDOW,
     )
-    patch_seed_method(env)  # SB3 PPO(seed=...) 재현성을 위해 shimmy가 요구하는 seed() 보강
+    patch_seed_method(env)
     return env
+
+
+def make_val_env():
+    """오버피팅 모니터링용 val env factory.
+
+    train과 동일한 API 변환 경로(GymV21CompatibilityV0 -> Monitor)를
+    거치도록 함 - SB3의 "Monitor wrapper 없음" 경고 제거 및 train/val
+    경로 일관성 확보.
+    """
+    env = make_env("val")
+    gym_env = shimmy.GymV21CompatibilityV0(env=env)
+    return Monitor(gym_env)
 
 
 def train(
@@ -89,7 +127,7 @@ def train(
     콜백만 얹으면 된다 - 이 함수 시그니처/구조는 유지.
 
     (8월 2주차 은아 구현) tensorboard_log, callback 파라미터를 추가해
-    위 안내대로 연결. 원본 로직(vec_env 생성, PPO 하이퍼파라미터)은 미변경.
+    위 안내대로 연결.
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=train_env)
     vec_env = DummyVecEnv([lambda: gym_env])
@@ -106,7 +144,6 @@ def train(
 
 
 def backtest(model: PPO, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
-    """학습된 모델을 eval_env에서 deterministic하게 굴려 공용 스펙 DataFrame을 만든다."""
     gym_env = shimmy.GymV21CompatibilityV0(env=eval_env)
 
     obs, _ = gym_env.reset()
@@ -116,8 +153,6 @@ def backtest(model: PPO, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
         obs, reward, terminated, truncated, info = gym_env.step(action)
         done = terminated or truncated
 
-    # env._date_memory 등은 reset() 시 초기값 1개로 시작해 매 step마다 append되므로
-    # 전부 동일 길이. reset() 시점의 초기값(t=0, 액션 이전)까지 포함된 전체 시계열이다.
     result = pd.DataFrame(
         {
             "date": eval_env._date_memory,
@@ -132,7 +167,6 @@ def backtest(model: PPO, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
 
 
 def sanity_check(backtest_df: pd.DataFrame) -> None:
-    """비중 합=1, NaN/inf 없는지 최소 확인 (B의 정식 sanity check와 별개로 학습 스크립트 자체 방어용)."""
     weight_sums = backtest_df["weights"].apply(sum)
     max_dev = (weight_sums - 1.0).abs().max()
     assert max_dev < 1e-3, f"비중 합이 1에서 {max_dev}만큼 벗어남"
@@ -158,19 +192,26 @@ def main() -> None:
             "time_window": TIME_WINDOW,
             "features": FEATURES,
             "initial_amount": INITIAL_AMOUNT,
+            "eval_freq": EVAL_FREQ,
         },
         sync_tensorboard=True,
     )
 
     print("=== [1/3] train split으로 PPO(MLP) 학습 ===")
     train_env = make_env("train")
+
+    eval_callback = make_eval_callback(make_val_env, RESULTS_DIR, eval_freq=EVAL_FREQ)
+
     model = train(
         train_env,
         tensorboard_log=f"runs/{run.id}",
-        callback=WandbCallback(
-            gradient_save_freq=100,
-            model_save_path=f"{RESULTS_DIR}/wandb_models/{run.id}",
-        ),
+        callback=CallbackList([
+            WandbCallback(
+                gradient_save_freq=100,
+                model_save_path=f"{RESULTS_DIR}/wandb_models/{run.id}",
+            ),
+            eval_callback,
+        ]),
     )
     model.save(MODEL_PATH)
     print(f"모델 저장: {MODEL_PATH}")
