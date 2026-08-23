@@ -1,16 +1,17 @@
 """PPO 학습 스크립트 공용 모듈 (make_env / backtest / sanity_check).
+...(기존 docstring 유지)...
 
-train_ppo_mlp.py, train_ppo_transformer.py 에 거의 동일하게 복붙되어 있던
-세 함수를 여기로 추출한 것. LSTM 스크립트 추가 전 선행 작업 - 이제 3개
-스크립트로 늘어나도 로직이 한 곳(여기)에만 있어서 복붙 안 생김.
+Train-only Standardization 지원
+--------------------------------
+make_env()에 stats 파라미터를 추가해, TrainStandardizeWrapper를
+공용 모듈 레벨에서 선택적으로 적용할 수 있게 함 (stats=None이면 원본
+그대로, 기존 호출부는 코드 변경 없이 동작).
 
-각 스크립트(train_ppo_*.py)는 자기 설정값(TIME_WINDOW, FEATURES,
-INITIAL_AMOUNT, SEED 등)을 여기 함수에 인자로 넘기기만 하면 됨 - 정책망
-종류(MLP/Transformer/LSTM)에 따라 달라지는 부분(features_extractor,
-policy_kwargs)은 각 스크립트에 그대로 남겨둔다. 이 모듈은 정책망과
-무관한 env 생성/백테스트/sanity check만 담당.
+backtest()는 eval_env가 원본이든 wrapper로 감싼 버전이든 모두 처리
+하도록 .unwrapped로 원본 env의 private 메모리에 접근함 (gym.Wrapper는
+밑줄 속성을 자동 위임하지 않음 - MLP 적용 때 발견된 버그, 여기서도
+동일하게 발생할 수 있어 선제 반영).
 """
-
 from __future__ import annotations
 
 import numpy as np
@@ -19,6 +20,7 @@ import shimmy
 
 from cryptoagent.envs.adapter import load_env_ready_df, patch_seed_method
 from cryptoagent.envs.env_portfolio_optimization import PortfolioOptimizationEnv
+from cryptoagent.envs.normalize_wrapper import TrainStandardizeWrapper
 
 
 def make_env(
@@ -27,11 +29,13 @@ def make_env(
     features: list[str],
     initial_amount: float,
     time_window: int,
+    stats: dict | None = None,
 ) -> PortfolioOptimizationEnv:
     """split("train"/"val"/"test")에 맞는 PortfolioOptimizationEnv를 생성.
 
-    각 학습 스크립트의 FEATURES/INITIAL_AMOUNT/TIME_WINDOW 설정값을
-    키워드 인자로 그대로 넘겨서 쓴다.
+    stats가 주어지면 TrainStandardizeWrapper로 감싸서 반환 (train-only
+    standardization 적용). stats=None(기본값)이면 기존과 동일하게 원본
+    env를 그대로 반환해 하위 호환됨.
     """
     df = load_env_ready_df(split=split)
     env = PortfolioOptimizationEnv(
@@ -42,19 +46,26 @@ def make_env(
         features=features,
         time_window=time_window,
     )
-    patch_seed_method(env)  # SB3 PPO(seed=...) 재현성을 위해 shimmy가 요구하는 seed() 보강
+    patch_seed_method(env)
+
+    if stats is not None:
+        env = TrainStandardizeWrapper(env, stats=stats)
+
     return env
 
 
-def backtest(model, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
+def backtest(model, eval_env) -> pd.DataFrame:
     """학습된 모델을 eval_env에서 deterministic하게 굴려 공용 스펙 DataFrame을 만든다.
+
+    eval_env는 원본 PortfolioOptimizationEnv이거나 TrainStandardizeWrapper로
+    감싼 버전일 수 있음. gym.Wrapper는 밑줄(_) 속성을 자동 위임하지 않으므로
+    .unwrapped로 원본 env를 꺼내서 private 메모리에 접근해야 함.
 
     공용 스펙 (팀 합의):
         index: date (datetime)
         columns: returns / portfolio_values / weights
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=eval_env)
-
     obs, _ = gym_env.reset()
     done = False
     while not done:
@@ -62,14 +73,14 @@ def backtest(model, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
         obs, reward, terminated, truncated, info = gym_env.step(action)
         done = terminated or truncated
 
-    # env._date_memory 등은 reset() 시 초기값 1개로 시작해 매 step마다 append되므로
-    # 전부 동일 길이. reset() 시점의 초기값(t=0, 액션 이전)까지 포함된 전체 시계열이다.
+    base_env = eval_env.unwrapped
+
     result = pd.DataFrame(
         {
-            "date": eval_env._date_memory,
-            "returns": eval_env._portfolio_return_memory,
-            "portfolio_values": eval_env._asset_memory["final"],
-            "weights": [w.tolist() for w in eval_env._final_weights],
+            "date": base_env._date_memory,
+            "returns": base_env._portfolio_return_memory,
+            "portfolio_values": base_env._asset_memory["final"],
+            "weights": [w.tolist() for w in base_env._final_weights],
         }
     )
     result["date"] = pd.to_datetime(result["date"])

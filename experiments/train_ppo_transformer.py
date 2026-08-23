@@ -21,6 +21,27 @@ extractor 쪽 코드 수정 없이 50~168h 등 다른 lookback으로 바로 실�
 
 작게 시작: 기본 2 layer / 4 head, d_model=32 (파라미터 약 1.7만개).
 체크리스트 요구사항(이 데이터 규모에서 파라미터 많으면 오버피팅 직행) 반영.
+
+오버피팅 모니터링 (9월 3주차, 은아)
+--------------------------------------
+EvalCallback으로 학습 도중 val split 성과를 주기적으로 측정해 W&B에
+기록함 (src/cryptoagent/training/overfitting_monitor.py).
+
+eval_freq=10240(=5*rollout 크기)으로 설정 - 2048마다 평가하면 val
+에피소드 길이(6,838 step) 때문에 평가 비용이 학습 비용의 3배 이상이
+되어 비효율적임을 스모크 테스트로 확인, 10,240으로 조정함
+(50,000 스텝 기준 약 5회 평가).
+
+train episode(수만 스텝)가 PPO rollout(2048)보다 길어
+rollout/ep_rew_mean과 eval/mean_reward를 직접 비교하기는 어려움.
+대신 학습 안정성(approx_kl, explained_variance 등)과 일반화
+(eval/mean_reward, val Sharpe/MDD/turnover)를 각각 관찰하는 것으로
+목표를 재정의함. 평가 지점이 적을 때 단기 등락만으로 오버피팅을
+단정하지 않고, 충분한 학습 구간에 걸친 추세로 판단할 것.
+
+val 환경도 train과 동일한 API 변환 경로(GymV21CompatibilityV0 ->
+Monitor)를 거치도록 함 - SB3의 "Monitor wrapper 없음" 경고 제거 및
+경로 일관성 확보.
 """
 
 from __future__ import annotations
@@ -33,11 +54,14 @@ import shimmy
 import wandb
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import CallbackList
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 
 from cryptoagent.envs.adapter import load_env_ready_df, patch_seed_method
 from cryptoagent.envs.env_portfolio_optimization import PortfolioOptimizationEnv
 from cryptoagent.policies.transformer_extractor import TransformerFeaturesExtractor
+from cryptoagent.training.overfitting_monitor import make_eval_callback
 
 # ── 설정 ─────────────────────────────────────────────
 TIME_WINDOW = 50  # lookback. 50~168h 범위에서 하이퍼파라미터로 조정 가능 (검증됨)
@@ -50,6 +74,9 @@ N_LAYERS = 2
 
 TOTAL_TIMESTEPS = 50_000  # 스모크 테스트용 기본값. 본 실험 규모는 게이트 통과 후 조정
 SEED = 42
+
+EVAL_FREQ = 10_240  # 5 * rollout(2048). val 에피소드가 길어(6,838 step)
+                     # 2048 주기는 평가 비용이 과도함 (코덱스 리뷰 반영)
 
 RESULTS_DIR = "results/ppo_transformer"
 MODEL_PATH = os.path.join(RESULTS_DIR, "ppo_transformer.zip")
@@ -71,6 +98,18 @@ def make_env(split: str) -> PortfolioOptimizationEnv:
     return env
 
 
+def make_val_env():
+    """오버피팅 모니터링용 val env factory.
+
+    train과 동일한 API 변환 경로(GymV21CompatibilityV0 -> Monitor)를
+    거치도록 함 - SB3의 "Monitor wrapper 없음" 경고 제거 및 train/val
+    경로 일관성 확보 (코덱스 리뷰 반영).
+    """
+    env = make_env("val")
+    gym_env = shimmy.GymV21CompatibilityV0(env=env)
+    return Monitor(gym_env)
+
+
 def train(
     train_env: PortfolioOptimizationEnv,
     tensorboard_log: str | None = None,
@@ -83,6 +122,9 @@ def train(
 
     (9월 1주차 은아 구현) tensorboard_log, callback 파라미터를 추가해
     train_ppo_mlp.py와 동일한 방식으로 WandbCallback 연결.
+
+    표준화 관련 하이퍼파라미터(learning_rate 등)는 표준화 미적용
+    최종 결정에 따라 넣지 않음 - SB3 PPO 기본값 사용 (MLP/LSTM과 통일).
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=train_env)
     vec_env = DummyVecEnv([lambda: gym_env])
@@ -159,6 +201,7 @@ def main() -> None:
             "n_layers": N_LAYERS,
             "features": FEATURES,
             "initial_amount": INITIAL_AMOUNT,
+            "eval_freq": EVAL_FREQ,
         },
         sync_tensorboard=True,
     )
@@ -166,13 +209,19 @@ def main() -> None:
     print(f"=== [1/3] train split으로 PPO(Transformer, d_model={D_MODEL}, "
           f"heads={N_HEADS}, layers={N_LAYERS}, lookback={TIME_WINDOW}) 학습 ===")
     train_env = make_env("train")
+
+    eval_callback = make_eval_callback(make_val_env, RESULTS_DIR, eval_freq=EVAL_FREQ)
+
     model = train(
         train_env,
         tensorboard_log=f"runs/{run.id}",
-        callback=WandbCallback(
-            gradient_save_freq=100,
-            model_save_path=f"{RESULTS_DIR}/wandb_models/{run.id}",
-        ),
+        callback=CallbackList([
+            WandbCallback(
+                gradient_save_freq=100,
+                model_save_path=f"{RESULTS_DIR}/wandb_models/{run.id}",
+            ),
+            eval_callback,
+        ]),
     )
     model.save(MODEL_PATH)
     print(f"모델 저장: {MODEL_PATH}")
@@ -185,7 +234,7 @@ def main() -> None:
 
     print("\n=== [3/3] Sanity Check ===")
     sanity_check(backtest_df)
-    run.finish() 
+    run.finish()
 
 
 if __name__ == "__main__":
