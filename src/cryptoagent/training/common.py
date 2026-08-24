@@ -62,6 +62,16 @@ def backtest(model, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
         obs, reward, terminated, truncated, info = gym_env.step(action)
         done = terminated or truncated
 
+    # 환경은 reset 시점의 초기값 1개와 각 step 결과를 각각의 메모리에 추가한다.
+    # 메모리가 같은 길이인지 확인해 date/returns/value/weights가
+    # 같은 시점을 가리킨다는 공용 결과 스펙을 보장한다.
+    assert (
+        len(eval_env._date_memory)
+        == len(eval_env._portfolio_return_memory)
+        == len(eval_env._asset_memory["final"])
+        == len(eval_env._final_weights)
+    ), "환경 메모리 길이가 일치하지 않음"
+
     # env._date_memory 등은 reset() 시 초기값 1개로 시작해 매 step마다 append되므로
     # 전부 동일 길이. reset() 시점의 초기값(t=0, 액션 이전)까지 포함된 전체 시계열이다.
     result = pd.DataFrame(
@@ -79,11 +89,19 @@ def backtest(model, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
 
 def sanity_check(backtest_df: pd.DataFrame) -> None:
     """비중 합=1, NaN/inf 없는지 최소 확인 (학습 스크립트 자체 방어용)."""
+
+    # weights 내부에도 NaN/inf가 없는지 확인
+    assert backtest_df["weights"].apply(
+        lambda w: np.isfinite(w).all()
+    ).all(), "weights에 NaN 또는 inf 존재"
+
     weight_sums = backtest_df["weights"].apply(sum)
     max_dev = (weight_sums - 1.0).abs().max()
     assert max_dev < 1e-3, f"비중 합이 1에서 {max_dev}만큼 벗어남"
 
-    assert not backtest_df["returns"].isna().any(), "returns에 NaN 존재"
+    # NaN/inf 체크
+    assert np.isfinite(backtest_df["returns"]).all(), "returns에 NaN 또는 inf 존재"
+
     assert not backtest_df["portfolio_values"].isna().any(), "portfolio_values에 NaN 존재"
     assert np.isfinite(backtest_df["portfolio_values"]).all(), "portfolio_values에 inf 존재"
 
