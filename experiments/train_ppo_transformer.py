@@ -24,6 +24,12 @@ extractor 쪽 코드 수정 없이 50~168h 등 다른 lookback으로 바로 실�
 
 참고: make_env / backtest / sanity_check는 train_ppo_mlp.py와 공용으로
 쓰기 위해 cryptoagent.training.common으로 추출됨 (8월 2주차 이월 작업).
+
+W&B/tensorboard 연동 (9월 1주차 은아 구현)
+--------------------------------------------
+train_ppo_mlp.py 패턴을 그대로 이식: wandb.init(sync_tensorboard=True)로
+러닝을 열고, train()에 tensorboard_log/callback을 넘겨 WandbCallback으로
+학습 로그를 같은 프로젝트(cryptoagent-ppo)에 기록한다.
 """
 
 from __future__ import annotations
@@ -37,6 +43,7 @@ from wandb.integration.sb3 import WandbCallback
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 
+from cryptoagent.envs.env_portfolio_optimization import PortfolioOptimizationEnv
 from cryptoagent.training.common import backtest, make_env as _make_env, sanity_check
 from cryptoagent.policies.transformer_extractor import TransformerFeaturesExtractor
 
@@ -147,8 +154,8 @@ def main() -> None:
 
     print("\n=== [3/3] Sanity Check ===")
     sanity_check(backtest_df)
-    run.finish() 
 
+    run.finish() 
 
 if __name__ == "__main__":
     main()
