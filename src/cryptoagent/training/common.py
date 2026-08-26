@@ -30,6 +30,7 @@ def make_env(
     initial_amount: float,
     time_window: int,
     stats: dict | None = None,
+    clip: tuple[float, float] | None = (-5.0, 5.0),
 ) -> PortfolioOptimizationEnv:
     """split("train"/"val"/"test")에 맞는 PortfolioOptimizationEnv를 생성.
 
