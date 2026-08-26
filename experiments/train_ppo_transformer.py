@@ -127,7 +127,7 @@ def train(
     최종 결정에 따라 넣지 않음 - SB3 PPO 기본값 사용 (MLP/LSTM과 통일).
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=train_env)
-    vec_env = DummyVecEnv([lambda: gym_env])
+    vec_env = DummyVecEnv([lambda: Monitor(gym_env)])
 
     policy_kwargs = dict(
         features_extractor_class=TransformerFeaturesExtractor,

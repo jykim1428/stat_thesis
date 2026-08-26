@@ -115,7 +115,7 @@ def train(
     policy_kwargs로 features_extractor_class만 교체.
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=train_env)
-    vec_env = DummyVecEnv([lambda: gym_env])
+    vec_env = DummyVecEnv([lambda: Monitor(gym_env)])
 
     policy_kwargs = dict(
         features_extractor_class=LSTMFeaturesExtractor,

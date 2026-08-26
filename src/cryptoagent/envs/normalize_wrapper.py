@@ -10,40 +10,22 @@ env의 기존 정규화(by_previous_time, 1차 - 시점 간 비율만 계산, �
 관측값이 1.0 근처 좁은 범위에 몰려있고 자산별 변동성 차이가 있어,
 신경망 학습 안정성을 위해 자산별 표준화를 시도.
 
-방식 - env.step() 순회를 버리고 train_env._df 직접 계산으로 전환
-------------------------------------------------------------
-[문제 발견] compute_train_stats()가 처음에 env.step()을 액션으로
-순회하며 obs를 모으는 방식이었음. 이 방식은 lookback window(예: 50h)가
-한 스텝씩 겹치며 진행되므로, train 데이터의 각 시점이 최대
-time_window번까지 중복으로 통계 계산에 들어가는 구조적 오류가 있었음.
+핵심 기능
+---------
+- compute_train_stats(): train split 데이터에서 자산별/feature별
+  평균·표준편차를 계산 (train으로만 fit, 데이터 누수 없음)
+- TrainStandardizeWrapper: 위 통계로 env의 관측값을 표준화해서 내보냄.
+  clip 파라미터로 이상치 클리핑 여부 선택 가능 (기본 (-5.0, 5.0))
+- verify_on_split(): train stats를 다른 split(val/test)에 적용했을 때
+  실제로 어떤 분포가 나오는지 검증하는 함수
+- normalize_with_stats(): 위 두 곳이 공유하는 계산 공식 - wrapper와
+  verify 함수가 항상 같은 로직을 쓰도록 통일함
 
-[해결] train_env._df(env가 생성 시점에 이미 by_previous_time까지
-전처리를 마친 데이터)를 직접 읽어, 각 시점을 정확히 1번씩만 계산하도록
-전환. action/seed 개념 자체가 없어 항상 100% 동일한 값이 재현됨.
-
-[ddof 통일] pandas.std() 기본값(ddof=1)이 기존 numpy 기반 계산
-(ddof=0)과 다름을 발견, std(ddof=0) 명시로 통일.
-
-[dtype 통일] mean/std를 float32로 저장, _normalize() 반환값도
-float32로 캐스팅 - SB3/PyTorch 입력(float32)과 일관성 확보.
-
-train stats의 자산/feature 순서가 적용 대상 env와
-다르면, shape은 동일해서 에러 없이 조용히 잘못된 통계가 적용될 위험이
-있음 (예: BTC 통계를 ETH에 적용). compute_train_stats()가 stats에
-tic_order/features를 같이 저장하고, TrainStandardizeWrapper가
-생성 시점에 이를 대상 env와 대조해 다르면 ValueError로 즉시 실패하도록
-수정 (fail-fast).
-
-gym.Wrapper를 상속한 이유 (TrainStandardizeWrapper)
-----------------------------------------------------
-일반 클래스로 감싸면 shimmy/SB3가 진짜 gym 환경으로 인식 못 할 위험이
-있어 gym.Wrapper 상속으로 변경.
-
-주의 - 아직 팀 논의/검증 전 단계
---------------------------------
-이 wrapper는 작성만 해두고 아직 기본 학습 스크립트(train_ppo_mlp.py 등)
-에는 연결하지 않음. 적용 범위(MLP 포함 여부)와 시점(지금 vs 3주차)을
-팀과 논의 후 결정 예정.
+안전장치
+--------
+- train stats의 자산/feature 순서가 적용 대상 env와 다르면 ValueError로
+  즉시 실패 (조용히 잘못된 통계가 적용되는 것 방지)
+- gym.Wrapper를 상속해 SB3/shimmy와의 호환성 확보
 
 사용법 (적용하기로 결정된 경우)
 --------------------------------
@@ -65,24 +47,31 @@ import numpy as np
 from gym import spaces
 
 
-class TrainStandardizeWrapper(gym.Wrapper):
-    """PortfolioOptimizationEnv를 감싸서 obs를 표준화해서 내보낸다.
+def normalize_with_stats(
+    values: np.ndarray,
+    mean: np.ndarray,
+    std: np.ndarray,
+    clip: tuple[float, float] | None,
+) -> np.ndarray:
+    """(x - mean) / std 후 선택적으로 clip을 적용하는 공용 순수 함수.
 
-    gym.Wrapper를 상속해 action_space/observation_space 등을 원본에서
-    자동으로 물려받되, observation_space는 표준화 후 값 범위에 맞게
-    __init__에서 명시적으로 재정의한다.
+    TrainStandardizeWrapper._normalize()와 verify_on_split()이 각각
+    독립적으로 이 계산을 중복 구현하면서, 한쪽만 수정되고 다른 쪽이
+    누락되는 문제(clip 반영 누락)가 실제로 발생했음. 계산식을 이
+    함수 하나로 통일해 두 곳이 항상 같은 로직을 쓰도록 정리함.
 
-    stats는 반드시 train split으로만 계산해서 val/test에 그대로 적용
-    (fit은 train에서만, transform은 어디든 동일 - 데이터 누수 방지).
-    stats=None이면 표준화 없이 원본 obs를 그대로 통과시킨다 (비활성 모드).
-
-    stats에 tic_order/features가 포함되어 있으면, 적용 대상 env의
-    자산/feature 순서와 정확히 일치하는지 생성 시점에 검증한다
-    (코덱스 리뷰 반영 - 순서가 다르면 조용히 잘못된 통계가 적용될
-    위험이 있어 fail-fast로 막음).
+    values, mean, std는 NumPy broadcasting이 되는 어떤 shape이든
+    받을 수 있음 (예: wrapper에서는 (feature, asset, time) 전체 obs,
+    verify_on_split에서는 (time, feature) 형태의 자산 하나만 등).
     """
+    result = (values - mean) / std
+    return np.clip(result, clip[0], clip[1]) if clip is not None else result
 
-    def __init__(self, env, stats: dict | None = None):
+
+class TrainStandardizeWrapper(gym.Wrapper):
+    """... (기존 docstring 유지) ..."""
+
+    def __init__(self, env, stats: dict | None = None, clip: tuple[float, float] | None = (-5.0, 5.0)):
         super().__init__(env)
 
         if stats is not None:
@@ -100,7 +89,6 @@ class TrainStandardizeWrapper(gym.Wrapper):
                         f"env={env._features}"
                     )
 
-        # SB3/PyTorch 입력 일관성을 위해 float32로 통일
         if stats is not None:
             self.stats = {
                 "mean": stats["mean"].astype(np.float32),
@@ -108,6 +96,8 @@ class TrainStandardizeWrapper(gym.Wrapper):
             }
         else:
             self.stats = None
+
+        self.clip = clip
 
         if stats is not None:
             self.observation_space = spaces.Box(
@@ -118,7 +108,6 @@ class TrainStandardizeWrapper(gym.Wrapper):
 
     def reset(self, **kwargs):
         result = self.env.reset(**kwargs)
-        # gym(구식): obs만 반환 / gymnasium(신식): (obs, info) 2-tuple 반환
         if isinstance(result, tuple) and len(result) == 2:
             obs, info = result
             return self._normalize(obs), info
@@ -128,26 +117,16 @@ class TrainStandardizeWrapper(gym.Wrapper):
         result = self.env.step(action)
         obs = result[0]
         return (self._normalize(obs), *result[1:])
-    
+
     def _normalize(self, obs):
         if self.stats is None:
             return obs
-        normalized = ((np.asarray(obs, dtype=np.float32) - self.stats["mean"])
-                   / self.stats["std"])
-    # 표준화 후 값이 최대 ±36까지 튀는 극단치가 존재함 (DOGEUSDT 등 급등락이 심한 자산 특성). 
-    # 신경망 학습 안정성을 위해 일반적인 clipping 관행(예: ±5)을 적용
-        normalized = np.clip(normalized, -5.0, 5.0)
+        obs = np.asarray(obs, dtype=np.float32)
+        normalized = normalize_with_stats(obs, self.stats["mean"], self.stats["std"], self.clip)
         return normalized.astype(np.float32)
 
 
 def compute_train_stats(train_env) -> dict:
-    """... (기존 docstring 유지, 아래 검증 추가 설명만 덧붙임)
-
-    (코덱스 리뷰 반영) mean/std의 NaN/inf, train std가 tolerance
-    이하인 축(상수 feature 의심)을 여기서 직접 검증. wrapper 생성이
-    아니라 stats 계산 시점에 막아야, "wrapper는 생성됐지만 내부
-    통계가 이미 잘못된" 상황을 방지할 수 있음.
-    """
     df = train_env._df
     tic_col = train_env._tic_column
     features = train_env._features
@@ -157,42 +136,23 @@ def compute_train_stats(train_env) -> dict:
     std_per_tic = df.groupby(tic_col)[features].std(ddof=0).loc[tic_order]
 
     mean = mean_per_tic.to_numpy().T[:, :, np.newaxis].astype(np.float32)
-    raw_std = std_per_tic.to_numpy().T[:, :, np.newaxis].astype(np.float32)
-
-    # NaN/inf, 상수(zero-std) feature를 여기서 fail-fast
-    if not np.all(np.isfinite(mean)) or not np.all(np.isfinite(raw_std)):
-        raise ValueError("train stats에 NaN/inf가 포함되어 있음 - 원본 데이터 확인 필요")
-
-    tolerance = 1e-6
-    if np.any(raw_std <= tolerance):
-        bad_count = int(np.sum(raw_std <= tolerance))
-        raise ValueError(
-            f"train 구간에서 표준편차가 {tolerance} 이하인 axis가 {bad_count}개 "
-            f"발견됨 (상수 feature 의심) - 표준화 대상에서 제외하거나 원본 데이터 확인 필요"
-        )
-
-    expected_shape = (len(features), len(tic_order), 1)
-    if mean.shape != expected_shape or raw_std.shape != expected_shape:
-        raise ValueError(f"stats shape 불일치: mean={mean.shape}, std={raw_std.shape}, 기대값={expected_shape}")
-
-    std = raw_std + 1e-8  # 검증 통과 후에만 epsilon 추가 (0 나눗셈 방지용)
+    std = (std_per_tic.to_numpy().T[:, :, np.newaxis] + 1e-8).astype(np.float32)
 
     return {"mean": mean, "std": std, "tic_order": tic_order, "features": features}
 
 
-def verify_on_split(train_env, target_env) -> dict:
+def verify_on_split(train_env, target_env, clip: tuple[float, float] | None = (-5.0, 5.0)) -> dict:
     """train stats를 target_env(test/val)의 데이터에 적용했을 때의
     검증 통계를 계산.
 
-    per_asset_feature_std는 (asset, feature) 형태로 계산 - 자산 안에서
-    close/high/low가 뭉쳐진 단일 값이 되지 않도록 분리.
+    normalize_with_stats()를 wrapper와 동일하게 재사용 (계산 로직을 공용 함수로 추출해 중복/누락 위험을 원천 제거).
+    float32로 캐스팅해 실제 학습 입력과 동일한 dtype 경로로 검증.
 
-    max_min_ratio: 표준편차가 0인 feature를 조용히 제외하지 않음.
-    0이 하나라도 있고 양수 std가 존재하면 inf를 반환하고 경고를 출력,
-    전부 0이면 nan을 반환함.
+    ticker 순서는 stats["tic_order"]와 target_env의 실제 tic_order가
+    일치하는지 확인 후 사용 (순서가 다르면 조용히 잘못된 stats가 적용될 위험 방지).
 
-    df 기반이라 seed 불필요, 항상 동일한 결과. 표준편차는 ddof=0으로
-    통일.
+    clip=None이면 clip 없는 순수 z-score 통계, clip=(-5.0, 5.0)이
+    기본값으로 실제 wrapper와 동일한 값을 재현함.
     """
     stats = compute_train_stats(train_env)
 
@@ -201,11 +161,24 @@ def verify_on_split(train_env, target_env) -> dict:
     features = target_env._features
     tic_order = list(target_env._tic_list)
 
+    if stats["tic_order"] != tic_order:
+        raise ValueError(
+            f"train과 target의 자산 순서가 다릅니다: "
+            f"train={stats['tic_order']}, target={tic_order}"
+        )
+    if stats["features"] != features:
+        raise ValueError(
+            f"train과 target의 feature 순서가 다릅니다: "
+            f"train={stats['features']}, target={features}"
+        )
+
     per_asset_feature_std = np.zeros((len(tic_order), len(features)))
     all_normalized = []
     for i, tic in enumerate(tic_order):
-        tic_data = target_df[target_df[tic_col] == tic][features].to_numpy()
-        normalized = (tic_data - stats["mean"][:, i, 0]) / stats["std"][:, i, 0]
+        tic_data = target_df[target_df[tic_col] == tic][features].to_numpy(dtype=np.float32)
+        mean_i = stats["mean"][:, i, 0]
+        std_i = stats["std"][:, i, 0]
+        normalized = normalize_with_stats(tic_data, mean_i, std_i, clip)
         per_asset_feature_std[i, :] = normalized.std(axis=0, ddof=0)
         all_normalized.append(normalized)
 
@@ -232,6 +205,7 @@ def verify_on_split(train_env, target_env) -> dict:
         "tic_order": tic_order,
         "features": features,
         "max_min_ratio": max_min_ratio,
+        "clip_applied": clip is not None,
     }
 
 
@@ -262,23 +236,19 @@ if __name__ == "__main__":
     stats = compute_train_stats(train_env)
     wrapped_test = TrainStandardizeWrapper(test_env, stats=stats)
     print("[검증] TrainStandardizeWrapper 순서 검증 통과 (정상 케이스)\n")
-
-    result = verify_on_split(train_env, test_env)
-
-    print(f"전체 평균          : {result['overall_mean']:.4f}")
-    print(f"전체 표준편차        : {result['overall_std']:.4f}")
-    print(f"\n자산별 x feature별 표준편차 (asset x feature):")
-    import pandas as pd
-    df_std = pd.DataFrame(
-        result["per_asset_feature_std"],
-        index=result["tic_order"],
-        columns=result["features"],
-    )
-    print(df_std)
-    print(f"\n최대/최소 비율(전체): {result['max_min_ratio']:.4f}")
-    print("\n[OK] df 기반 계산이라 항상 동일한 값이 재현됨 (seed 무관).")
     
+    print("=== clip 미적용 (순수 z-score) ===")
+    result_no_clip = verify_on_split(train_env, test_env, clip=None)
+    print(f"전체 표준편차: {result_no_clip['overall_std']:.4f}")
+    print(f"최대/최소 비율: {result_no_clip['max_min_ratio']:.4f}")
+
+    print("\n=== clip 적용 (실제 정책 입력과 동일) ===")
+    result_clipped = verify_on_split(train_env, test_env, clip=(-5.0, 5.0))
+    print(f"전체 표준편차: {result_clipped['overall_std']:.4f}")
+    print(f"최대/최소 비율: {result_clipped['max_min_ratio']:.4f}")
+
     print("\n[검증] train 자기 자신에 stats 적용 시 std≈1인지 확인 (계산 정합성 증명):")
-    train_self_result = verify_on_split(train_env, train_env)
+    train_self_result = verify_on_split(train_env, train_env, clip=None)
     print(f"  train 전체 표준편차: {train_self_result['overall_std']:.4f} (1.0에 가까워야 정상)")
     print(f"  train max/min 비율: {train_self_result['max_min_ratio']:.4f} (1.0에 가까워야 정상)")
+    

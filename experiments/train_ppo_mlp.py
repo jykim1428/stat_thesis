@@ -130,7 +130,7 @@ def train(
     위 안내대로 연결.
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=train_env)
-    vec_env = DummyVecEnv([lambda: gym_env])
+    vec_env = DummyVecEnv([lambda: Monitor(gym_env)])
 
     model = PPO(
         "MlpPolicy",
