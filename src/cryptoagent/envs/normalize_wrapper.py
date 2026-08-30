@@ -69,10 +69,20 @@ def normalize_with_stats(
 
 
 class TrainStandardizeWrapper(gym.Wrapper):
-    """... (기존 docstring 유지) ..."""
+    """... (기존 docstring 유지) ...
+
+    PortfolioOptimizationEnv(return_last_action=True)는 observation을
+    {"state": (feature, asset, time), "last_action": (...)} 형태의 Dict로
+    반환한다 (return_last_action=False 기본값이면 Box). 이 wrapper는 두
+    경우 모두 지원한다 - Dict일 때는 "state" 원소만 표준화하고
+    "last_action"은 그대로 통과시키며, observation_space도 Dict 구조를
+    유지한 채 "state"의 space만 Box(-inf, inf)로 갱신한다.
+    """
 
     def __init__(self, env, stats: dict | None = None, clip: tuple[float, float] | None = (-5.0, 5.0)):
         super().__init__(env)
+
+        self._is_dict_obs = isinstance(env.observation_space, spaces.Dict)
 
         if stats is not None:
             if "tic_order" in stats:
@@ -100,11 +110,22 @@ class TrainStandardizeWrapper(gym.Wrapper):
         self.clip = clip
 
         if stats is not None:
-            self.observation_space = spaces.Box(
-                low=-np.inf, high=np.inf,
-                shape=env.observation_space.shape,
-                dtype=np.float32,
-            )
+            if self._is_dict_obs:
+                state_space = env.observation_space["state"]
+                self.observation_space = spaces.Dict({
+                    "state": spaces.Box(
+                        low=-np.inf, high=np.inf,
+                        shape=state_space.shape,
+                        dtype=np.float32,
+                    ),
+                    "last_action": env.observation_space["last_action"],
+                })
+            else:
+                self.observation_space = spaces.Box(
+                    low=-np.inf, high=np.inf,
+                    shape=env.observation_space.shape,
+                    dtype=np.float32,
+                )
 
     def reset(self, **kwargs):
         result = self.env.reset(**kwargs)
@@ -121,6 +142,10 @@ class TrainStandardizeWrapper(gym.Wrapper):
     def _normalize(self, obs):
         if self.stats is None:
             return obs
+        if self._is_dict_obs:
+            state = np.asarray(obs["state"], dtype=np.float32)
+            normalized_state = normalize_with_stats(state, self.stats["mean"], self.stats["std"], self.clip)
+            return {"state": normalized_state.astype(np.float32), "last_action": obs["last_action"]}
         obs = np.asarray(obs, dtype=np.float32)
         normalized = normalize_with_stats(obs, self.stats["mean"], self.stats["std"], self.clip)
         return normalized.astype(np.float32)
