@@ -163,6 +163,7 @@ def backtest_risk_parity(env: PortfolioOptimizationEnv, wide_prices: pd.DataFram
             "returns": env._portfolio_return_memory,
             "portfolio_values": env._asset_memory["final"],
             "weights": [w.tolist() for w in env._final_weights],
+            "target_weights": [w.tolist() for w in env._actions_memory],
         }
     )
     result["date"] = pd.to_datetime(result["date"])

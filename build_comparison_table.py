@@ -43,8 +43,10 @@ def load_metrics_df(csv_path: str) -> pd.DataFrame:
     """CSV를 evaluate()가 요구하는 형식(date index, weights=array)으로 로드."""
     df = pd.read_csv(csv_path, parse_dates=["date"])
     df = df.set_index("date")
-    # weights 컬럼이 문자열 "[1.0, 0.0, ...]" 형태(표준 JSON 배열)이므로 json.loads로 파싱
+    # weights/target_weights 컬럼이 문자열 "[1.0, 0.0, ...]" 형태(표준 JSON 배열)이므로 json.loads로 파싱
     df["weights"] = df["weights"].apply(json.loads).apply(np.array)
+    if "target_weights" in df.columns:
+        df["target_weights"] = df["target_weights"].apply(json.loads).apply(np.array)
     return df
 
 
