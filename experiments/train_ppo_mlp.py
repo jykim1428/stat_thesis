@@ -167,11 +167,16 @@ def backtest(model: PPO, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
 
 
 def sanity_check(backtest_df: pd.DataFrame) -> None:
+    # weights 벡터 안에 NaN이 섞이면 sum()이 NaN이 되고, pandas.Series.max()의
+    # 기본 skipna=True 때문에 그 행이 통계에서 조용히 빠져 max_dev가 정상값으로
+    # 나온다 - 벡터 원소 단위로 먼저 finite 여부를 확인해야 이 케이스를 놓치지 않는다.
+    assert backtest_df["weights"].apply(lambda w: np.isfinite(w).all()).all(), "weights에 NaN 또는 inf 존재"
+
     weight_sums = backtest_df["weights"].apply(sum)
     max_dev = (weight_sums - 1.0).abs().max()
     assert max_dev < 1e-3, f"비중 합이 1에서 {max_dev}만큼 벗어남"
 
-    assert not backtest_df["returns"].isna().any(), "returns에 NaN 존재"
+    assert np.isfinite(backtest_df["returns"]).all(), "returns에 NaN 또는 inf 존재"
     assert not backtest_df["portfolio_values"].isna().any(), "portfolio_values에 NaN 존재"
     assert np.isfinite(backtest_df["portfolio_values"]).all(), "portfolio_values에 inf 존재"
 

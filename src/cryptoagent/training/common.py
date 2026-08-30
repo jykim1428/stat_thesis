@@ -50,7 +50,7 @@ def make_env(
     patch_seed_method(env)
 
     if stats is not None:
-        env = TrainStandardizeWrapper(env, stats=stats)
+        env = TrainStandardizeWrapper(env, stats=stats, clip=clip)
 
     return env
 
@@ -91,11 +91,19 @@ def backtest(model, eval_env) -> pd.DataFrame:
 
 def sanity_check(backtest_df: pd.DataFrame) -> None:
     """비중 합=1, NaN/inf 없는지 최소 확인 (학습 스크립트 자체 방어용)."""
+    # weights/target_weights 벡터 안에 NaN이 섞이면 sum()이 NaN이 되고,
+    # pandas.Series.max()는 기본적으로 skipna=True라 그 행이 통계에서
+    # 조용히 빠져 max_dev가 정상값으로 나온다 - 반드시 벡터 원소 단위로
+    # 먼저 finite 여부를 확인해야 이 케이스를 놓치지 않는다.
+    weight_cols = ["weights"] + (["target_weights"] if "target_weights" in backtest_df.columns else [])
+    for col in weight_cols:
+        assert backtest_df[col].apply(lambda w: np.isfinite(w).all()).all(), f"{col}에 NaN 또는 inf 존재"
+
     weight_sums = backtest_df["weights"].apply(sum)
     max_dev = (weight_sums - 1.0).abs().max()
     assert max_dev < 1e-3, f"비중 합이 1에서 {max_dev}만큼 벗어남"
 
-    assert not backtest_df["returns"].isna().any(), "returns에 NaN 존재"
+    assert np.isfinite(backtest_df["returns"]).all(), "returns에 NaN 또는 inf 존재"
     assert not backtest_df["portfolio_values"].isna().any(), "portfolio_values에 NaN 존재"
     assert np.isfinite(backtest_df["portfolio_values"]).all(), "portfolio_values에 inf 존재"
 
