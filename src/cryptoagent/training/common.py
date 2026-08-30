@@ -51,7 +51,15 @@ def backtest(model, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
 
     공용 스펙 (팀 합의):
         index: date (datetime)
-        columns: returns / portfolio_values / weights
+        columns: returns / portfolio_values / weights / target_weights
+
+    weights는 가격 변동을 반영한 사후(post-trade) 비중, target_weights는
+    해당 스텝에서 에이전트가 실제로 지시한 리밸런싱 목표 비중이다
+    (env._actions_memory, env_portfolio_optimization.py 참고). 거래량(turnover)은
+    반드시 target_weights[t]와 weights[t-1](직전 스텝 사후 비중)의 차이로
+    계산해야 한다 - weights[t]-weights[t-1]로 계산하면 가격 변동으로 인한
+    비중 변화까지 거래량으로 잘못 잡아 turnover가 과대계상된다
+    (evaluate.py의 compute_turnover_from_weights 참고).
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=eval_env)
 
@@ -70,6 +78,7 @@ def backtest(model, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
             "returns": eval_env._portfolio_return_memory,
             "portfolio_values": eval_env._asset_memory["final"],
             "weights": [w.tolist() for w in eval_env._final_weights],
+            "target_weights": [w.tolist() for w in eval_env._actions_memory],
         }
     )
     result["date"] = pd.to_datetime(result["date"])

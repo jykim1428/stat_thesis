@@ -21,9 +21,32 @@ RETURN_JITTER_TOL = 1e-3  # portfolio_values 정합성 체크 허용 오차
 
 def load_backtest_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path, index_col="date", parse_dates=True)
-    # CSV로 저장되며 weights가 문자열이 되므로 복원 필수
+    # CSV로 저장되며 weights/target_weights가 문자열이 되므로 복원 필수
     df["weights"] = df["weights"].apply(ast.literal_eval)
+    if "target_weights" in df.columns:
+        df["target_weights"] = df["target_weights"].apply(ast.literal_eval)
     return df
+
+
+def _verify_weight_column(df: pd.DataFrame, col: str) -> list[str]:
+    """weights/target_weights 컬럼 하나에 대한 길이/합/범위 검증."""
+    errors = []
+
+    bad_len = df[col].apply(len) != N_ASSETS_PLUS_CASH
+    if bad_len.any():
+        errors.append(f"{col} 길이가 {N_ASSETS_PLUS_CASH}이 아닌 행 {bad_len.sum()}개")
+
+    weight_sums = df[col].apply(sum)
+    max_dev = (weight_sums - 1.0).abs().max()
+    if max_dev >= WEIGHT_SUM_TOL:
+        errors.append(f"{col} 합이 1에서 {max_dev:.2e}만큼 벗어남")
+
+    min_w = df[col].apply(min).min()
+    max_w = df[col].apply(max).max()
+    if min_w < -1e-6 or max_w > 1 + 1e-6:
+        errors.append(f"{col}의 개별 값이 [0,1] 범위 밖: min={min_w}, max={max_w}")
+
+    return errors
 
 
 def verify(df: pd.DataFrame) -> list[str]:
@@ -37,22 +60,17 @@ def verify(df: pd.DataFrame) -> list[str]:
     if not np.isfinite(df["portfolio_values"]).all():
         errors.append("portfolio_values에 inf 존재")
 
-    # 2. 비중 벡터 길이
-    bad_len = df["weights"].apply(len) != N_ASSETS_PLUS_CASH
-    if bad_len.any():
-        errors.append(f"weights 길이가 {N_ASSETS_PLUS_CASH}이 아닌 행 {bad_len.sum()}개")
+    # 2~4. weights 벡터 길이/합/범위
+    errors.extend(_verify_weight_column(df, "weights"))
 
-    # 3. 비중 합 = 1
-    weight_sums = df["weights"].apply(sum)
-    max_dev = (weight_sums - 1.0).abs().max()
-    if max_dev >= WEIGHT_SUM_TOL:
-        errors.append(f"비중 합이 1에서 {max_dev:.2e}만큼 벗어남")
-
-    # 4. 개별 비중 범위 [0, 1] (short 미허용 전제)
-    min_w = df["weights"].apply(min).min()
-    max_w = df["weights"].apply(max).max()
-    if min_w < -1e-6 or max_w > 1 + 1e-6:
-        errors.append(f"개별 비중이 [0,1] 범위 밖: min={min_w}, max={max_w}")
+    # target_weights도 동일 검증 (공용 스펙의 핵심 컬럼 - turnover 계산에 직접 쓰임)
+    if "target_weights" in df.columns:
+        errors.extend(_verify_weight_column(df, "target_weights"))
+    else:
+        errors.append(
+            "target_weights 컬럼 없음 - turnover가 weights 간 차이로만 근사되어 "
+            "과대계상됨 (evaluate.py의 allow_legacy_turnover 참고)"
+        )
 
     # 5. date 인덱스 정렬 + 중복
     if not df.index.is_monotonic_increasing:

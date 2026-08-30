@@ -124,6 +124,7 @@ def backtest(model: PPO, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
             "returns": eval_env._portfolio_return_memory,
             "portfolio_values": eval_env._asset_memory["final"],
             "weights": [w.tolist() for w in eval_env._final_weights],
+            "target_weights": [w.tolist() for w in eval_env._actions_memory],
         }
     )
     result["date"] = pd.to_datetime(result["date"])
