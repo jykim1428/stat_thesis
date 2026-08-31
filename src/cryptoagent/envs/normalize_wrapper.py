@@ -69,7 +69,15 @@ def normalize_with_stats(
 
 
 class TrainStandardizeWrapper(gym.Wrapper):
-    """... (기존 docstring 유지) ...
+    """PortfolioOptimizationEnv를 감싸서 obs를 표준화해서 내보낸다.
+
+    gym.Wrapper를 상속해 action_space/observation_space 등을 원본에서
+    자동으로 물려받되, observation_space는 표준화 후 값 범위에 맞게
+    __init__에서 명시적으로 재정의한다.
+
+    stats는 반드시 train split으로만 계산해서 val/test에 그대로 적용
+    (fit은 train에서만, transform은 어디든 동일 - 데이터 누수 방지).
+    stats=None이면 표준화 없이 원본 obs를 그대로 통과시킨다 (비활성 모드).
 
     PortfolioOptimizationEnv(return_last_action=True)는 observation을
     {"state": (feature, asset, time), "last_action": (...)} 형태의 Dict로

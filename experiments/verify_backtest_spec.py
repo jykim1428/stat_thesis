@@ -29,12 +29,21 @@ def load_backtest_csv(path: str) -> pd.DataFrame:
 
 
 def _verify_weight_column(df: pd.DataFrame, col: str) -> list[str]:
-    """weights/target_weights 컬럼 하나에 대한 길이/합/범위 검증."""
+    """weights/target_weights 컬럼 하나에 대한 길이/NaN·inf/합/범위 검증."""
     errors = []
 
     bad_len = df[col].apply(len) != N_ASSETS_PLUS_CASH
     if bad_len.any():
         errors.append(f"{col} 길이가 {N_ASSETS_PLUS_CASH}이 아닌 행 {bad_len.sum()}개")
+        return errors  # 길이가 안 맞으면 이후 원소 단위 검사가 무의미하므로 중단
+
+    # 벡터 원소 단위로 먼저 finite 여부를 확인해야 한다. sum()/min()/max()에
+    # NaN이 하나라도 섞이면 결과 자체가 NaN이 되는데, 그 뒤 pandas의 .max()가
+    # 기본적으로 skipna=True라 그 행이 통계에서 조용히 빠져 검증을 통과시킨다.
+    bad_finite = df[col].apply(lambda w: not np.isfinite(w).all())
+    if bad_finite.any():
+        errors.append(f"{col}에 NaN 또는 inf가 포함된 행 {bad_finite.sum()}개")
+        return errors  # NaN/inf가 있으면 sum/min/max 자체가 무의미하므로 중단
 
     weight_sums = df[col].apply(sum)
     max_dev = (weight_sums - 1.0).abs().max()
@@ -53,8 +62,8 @@ def verify(df: pd.DataFrame) -> list[str]:
     errors = []
 
     # 1. NaN / inf 체크
-    if df["returns"].isna().any():
-        errors.append("returns에 NaN 존재")
+    if not np.isfinite(df["returns"]).all():
+        errors.append("returns에 NaN 또는 inf 존재")
     if df["portfolio_values"].isna().any():
         errors.append("portfolio_values에 NaN 존재")
     if not np.isfinite(df["portfolio_values"]).all():
