@@ -4,6 +4,24 @@ Vendored from AI4Finance-Foundation/FinRL @ 2334a5fe6d30629157f13c3b0319e1637e15
 (2026-07-12) to avoid pulling the full `finrl` pip package's unrelated
 Alpaca/paper-trading dependencies. Do not edit upstream logic here directly —
 patch locally and note the diff, or re-vendor from a newer commit.
+
+로컬 패치 (2026-08-31, 코덱스 리뷰 반영)
+------------------------------------------
+action_space를 Box(low=0, high=1)에서 Box(low=-inf, high=inf)로 변경.
+
+문제: action_space가 [0,1]^9로 제한된 상태에서 _softmax_normalization()까지
+적용하면, 9개 성분이 모두 [0,1]인 입력의 softmax 출력은 이론상 약
+4.4%~25.4% 범위에 갇힌다 (실측: 학습된 MLP 정책의 실제 비중도 9.4%~15.2%
+범위에서만 움직임). 즉 PPO가 사실상 "제한된 softmax 공간 안에서 미세
+조정"만 하는 구조였고, BTC 100% 집중이나 자산 하나를 0%로 만드는 것 같은
+극단적 배분을 원천적으로 표현할 수 없었다. 반면 벤치마크(Buy&Hold는 100%
+집중, Markowitz/Risk Parity는 0~30%대)는 이런 제약이 없어 action 자유도가
+서로 달랐다.
+
+수정: action_space를 unbounded로 열어 PPO가 충분한 범위의 logit을 출력할
+수 있게 함. _softmax_normalization()은 그대로 유지 - 벡터 합이 1이 되는
+보장은 계속 필요하고, softmax 자체는 입력 범위에 제약이 없으면 이론상
+[0,1] 전체(각 성분이 0 또는 1에 임의로 가깝게)를 표현할 수 있다.
 """
 
 from __future__ import annotations
@@ -169,7 +187,14 @@ class PortfolioOptimizationEnv(gym.Env):
         self.episode_length = len(self._sorted_times) - time_window + 1
 
         # define action space
-        self.action_space = spaces.Box(low=0, high=1, shape=(action_space,))
+        # 로컬 패치: low=0, high=1 -> [-10, 10]. 파일 상단 docstring 참고
+        # (softmax 입력을 [0,1]로 제한하면 출력이 좁은 범위에 갇히는 문제 해결).
+        # SB3 PPO는 완전 unbounded(-inf, inf) continuous action space를 거부함
+        # ("Continuous action space must have a finite lower and upper bound") -
+        # 실행해서 직접 확인함. [-10, 10]이면 softmax(x)에서 x_i - x_j 차이가
+        # 최대 20까지 가능해 한 성분이 사실상 1, 나머지가 사실상 0에 가까운
+        # 극단적 배분(예: BTC 100% 집중)까지 표현 가능하면서도 유한 범위 요건을 만족.
+        self.action_space = spaces.Box(low=-10.0, high=10.0, shape=(action_space,))
 
         # define observation state
         if self._return_last_action:
