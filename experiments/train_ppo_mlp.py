@@ -54,10 +54,20 @@ train_ppo_transformer.py에서 먼저 검증됨: EvalCallback 추가 전/후로
 추가가 실제 학습 결과에 영향을 주지 않고 관찰만 한다는 것을 확인함.
 참고: make_env / backtest / sanity_check는 train_ppo_transformer.py와 공용으로
 쓰기 위해 cryptoagent.training.common으로 추출됨 (8월 2주차 이월 작업).
+
+--eval-split (코덱스 리뷰 반영, "기존 학습 엔트리포인트가 자동으로 test를
+본다"는 지적)
+--------------------------------------------------------------------------
+과거에는 항상 test split으로 백테스트했는데, 이러면 하이퍼파라미터 조정이나
+버그 수정 후 재학습·재실행할 때마다 test 성능을 반복 관찰하게 되어
+"test는 최종 1회 평가에만 쓴다"는 팀 원칙(test-set contamination 방지)이
+깨진다. 기본값을 val로 바꾸고, test는 --eval-split test로 명시했을 때만
+사용하도록 해서 실수로 test를 보는 것을 막는다.
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 from functools import partial
 
@@ -72,6 +82,15 @@ import shimmy
 from cryptoagent.training.overfitting_monitor import make_eval_callback
 from cryptoagent.training.common import backtest, make_env as _make_env, sanity_check
 
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--eval-split", choices=("val", "test"), default="val",
+        help="백테스트에 쓸 split. test는 최종 평가 1회에만 명시적으로 사용할 것.",
+    )
+    return parser.parse_args()
+
 # ── 설정 ─────────────────────────────────────────────
 TIME_WINDOW = 50
 FEATURES = ["close", "high", "low"]
@@ -85,7 +104,6 @@ EVAL_FREQ = 10_240  # 5 * rollout(2048). val 에피소드가 길어 2048 주기�
 
 RESULTS_DIR = "results/ppo_mlp"
 MODEL_PATH = os.path.join(RESULTS_DIR, "ppo_mlp.zip")
-BACKTEST_PATH = os.path.join(RESULTS_DIR, "backtest_test.csv")
 # ─────────────────────────────────────────────────────
 
 
@@ -142,12 +160,20 @@ def train(
 
 
 def main() -> None:
+    args = parse_args()
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    backtest_path = os.path.join(RESULTS_DIR, f"backtest_{args.eval_split}.csv")
+
+    if args.eval_split == "test":
+        print(
+            "[경고] --eval-split test로 실행합니다. test는 최종 평가 1회에만 "
+            "사용해야 합니다 (반복 실행 시 test-set contamination 위험)."
+        )
 
     run = wandb.init(
         entity="choieuna0711-student",
         project="cryptoagent-ppo",
-        name="ppo_mlp_sanity_baseline",
+        name=f"ppo_mlp_{args.eval_split}",
         config={
             "total_timesteps": TOTAL_TIMESTEPS,
             "seed": SEED,
@@ -155,6 +181,7 @@ def main() -> None:
             "features": FEATURES,
             "initial_amount": INITIAL_AMOUNT,
             "eval_freq": EVAL_FREQ,
+            "eval_split": args.eval_split,
         },
         sync_tensorboard=True,
     )
@@ -178,11 +205,11 @@ def main() -> None:
     model.save(MODEL_PATH)
     print(f"모델 저장: {MODEL_PATH}")
 
-    print("\n=== [2/3] test split 백테스트 ===")
-    test_env = make_env("test")
-    backtest_df = backtest(model, test_env)
-    backtest_df.to_csv(BACKTEST_PATH)
-    print(f"백테스트 결과 저장: {BACKTEST_PATH}  shape={backtest_df.shape}")
+    print(f"\n=== [2/3] {args.eval_split} split 백테스트 ===")
+    eval_env = make_env(args.eval_split)
+    backtest_df = backtest(model, eval_env)
+    backtest_df.to_csv(backtest_path)
+    print(f"백테스트 결과 저장: {backtest_path}  shape={backtest_df.shape}")
 
     print("\n=== [3/3] Sanity Check ===")
     sanity_check(backtest_df)

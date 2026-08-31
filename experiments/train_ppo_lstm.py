@@ -41,10 +41,16 @@ tensorboard_log/callback을 넘겨 WandbCallback으로 학습 로그를 같은
 make_env/backtest/sanity_check는 cryptoagent.training.common에서 가져옴
 (train_ppo_mlp.py, train_ppo_transformer.py와 동일 - 복붙 없음). 이 정책망
 (LSTM) 고유 로직(policy_kwargs, HIDDEN_SIZE/NUM_LAYERS)만 이 파일에 있다.
+
+--eval-split (코덱스 리뷰 반영)
+--------------------------------
+기본값을 val로 바꾸고, test는 --eval-split test로 명시했을 때만 사용
+(train_ppo_mlp.py와 동일 원칙 - test-set contamination 방지).
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 from functools import partial
 
@@ -59,6 +65,15 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from cryptoagent.policies.lstm_extractor import LSTMFeaturesExtractor
 from cryptoagent.training.common import backtest, make_env as _make_env, sanity_check
 from cryptoagent.training.overfitting_monitor import make_eval_callback
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--eval-split", choices=("val", "test"), default="val",
+        help="백테스트에 쓸 split. test는 최종 평가 1회에만 명시적으로 사용할 것.",
+    )
+    return parser.parse_args()
 
 # ── 설정 ─────────────────────────────────────────────
 # MLP/Transformer와 공정 비교를 위해 아래 세 값은 동일하게 고정
@@ -78,7 +93,6 @@ EVAL_FREQ = 10_240  # MLP/Transformer와 동일 (5 * rollout(2048))
 
 RESULTS_DIR = "results/ppo_lstm"
 MODEL_PATH = os.path.join(RESULTS_DIR, "ppo_lstm.zip")
-BACKTEST_PATH = os.path.join(RESULTS_DIR, "backtest_test.csv")
 # ─────────────────────────────────────────────────────
 
 
@@ -137,12 +151,20 @@ def train(
 
 
 def main() -> None:
+    args = parse_args()
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    backtest_path = os.path.join(RESULTS_DIR, f"backtest_{args.eval_split}.csv")
+
+    if args.eval_split == "test":
+        print(
+            "[경고] --eval-split test로 실행합니다. test는 최종 평가 1회에만 "
+            "사용해야 합니다 (반복 실행 시 test-set contamination 위험)."
+        )
 
     run = wandb.init(
         entity="choieuna0711-student",
         project="cryptoagent-ppo",
-        name="ppo_lstm_sanity_baseline",
+        name=f"ppo_lstm_{args.eval_split}",
         config={
             "total_timesteps": TOTAL_TIMESTEPS,
             "seed": SEED,
@@ -153,6 +175,7 @@ def main() -> None:
             "num_layers": NUM_LAYERS,
             "dropout": DROPOUT,
             "eval_freq": EVAL_FREQ,
+            "eval_split": args.eval_split,
         },
         sync_tensorboard=True,
     )
@@ -177,11 +200,11 @@ def main() -> None:
     model.save(MODEL_PATH)
     print(f"모델 저장: {MODEL_PATH}")
 
-    print("\n=== [2/3] test split 백테스트 ===")
-    test_env = make_env("test")
-    backtest_df = backtest(model, test_env)
-    backtest_df.to_csv(BACKTEST_PATH)
-    print(f"백테스트 결과 저장: {BACKTEST_PATH}  shape={backtest_df.shape}")
+    print(f"\n=== [2/3] {args.eval_split} split 백테스트 ===")
+    eval_env = make_env(args.eval_split)
+    backtest_df = backtest(model, eval_env)
+    backtest_df.to_csv(backtest_path)
+    print(f"백테스트 결과 저장: {backtest_path}  shape={backtest_df.shape}")
 
     print("\n=== [3/3] Sanity Check ===")
     sanity_check(backtest_df)
