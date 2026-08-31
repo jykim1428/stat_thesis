@@ -84,6 +84,17 @@ def backtest(model, eval_env) -> pd.DataFrame:
 
     base_env = eval_env.unwrapped
 
+    # 환경은 reset 시점의 초기값 1개와 각 step 결과를 각각의 메모리에 추가한다.
+    # 메모리가 같은 길이인지 확인해 date/returns/value/weights가
+    # 같은 시점을 가리킨다는 공용 결과 스펙을 보장한다.
+    assert (
+        len(base_env._date_memory)
+        == len(base_env._portfolio_return_memory)
+        == len(base_env._asset_memory["final"])
+        == len(base_env._final_weights)
+        == len(base_env._actions_memory)
+    ), "환경 메모리 길이가 일치하지 않음"
+
     result = pd.DataFrame(
         {
             "date": base_env._date_memory,
