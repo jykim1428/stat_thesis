@@ -7,7 +7,7 @@ patch locally and note the diff, or re-vendor from a newer commit.
 
 로컬 패치 (2026-08-31, 코덱스 리뷰 반영)
 ------------------------------------------
-action_space를 Box(low=0, high=1)에서 Box(low=-inf, high=inf)로 변경.
+action_space를 Box(low=0, high=1)에서 Box(low=-10, high=10)로 변경.
 
 문제: action_space가 [0,1]^9로 제한된 상태에서 _softmax_normalization()까지
 적용하면, 9개 성분이 모두 [0,1]인 입력의 softmax 출력은 이론상 약
@@ -18,10 +18,12 @@ action_space를 Box(low=0, high=1)에서 Box(low=-inf, high=inf)로 변경.
 집중, Markowitz/Risk Parity는 0~30%대)는 이런 제약이 없어 action 자유도가
 서로 달랐다.
 
-수정: action_space를 unbounded로 열어 PPO가 충분한 범위의 logit을 출력할
-수 있게 함. _softmax_normalization()은 그대로 유지 - 벡터 합이 1이 되는
-보장은 계속 필요하고, softmax 자체는 입력 범위에 제약이 없으면 이론상
-[0,1] 전체(각 성분이 0 또는 1에 임의로 가깝게)를 표현할 수 있다.
+수정: 처음엔 완전 unbounded(-inf, inf)로 열려 했으나, SB3 PPO가
+"Continuous action space must have a finite lower and upper bound"로
+거부함을 실행해서 확인 - 유한 범위가 필수. [-10, 10]으로 조정:
+softmax(x)에서 한 성분과 나머지 차이가 최대 20까지 가능해 사실상 100%
+집중(0.99999998)까지 표현 가능하면서 SB3의 유한 범위 요건도 만족.
+_softmax_normalization()은 그대로 유지.
 """
 
 from __future__ import annotations

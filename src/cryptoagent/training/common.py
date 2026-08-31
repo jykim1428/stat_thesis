@@ -1,5 +1,9 @@
 """PPO 학습 스크립트 공용 모듈 (make_env / backtest / sanity_check).
-...(기존 docstring 유지)...
+
+train_ppo_mlp.py, train_ppo_transformer.py, train_ppo_lstm.py에 복붙되어
+있던 세 함수를 여기로 추출한 것. 정책망 종류(MLP/Transformer/LSTM)에
+따라 달라지는 부분(features_extractor, policy_kwargs)은 각 스크립트에
+그대로 남겨두고, env 생성/백테스트/sanity check만 이 모듈이 담당한다.
 
 Train-only Standardization 지원
 --------------------------------
