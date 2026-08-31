@@ -42,3 +42,6 @@ results/ppo_lstm_ablation/
 
 # 오버피팅 모니터링 스모크 테스트 산출물
 results/smoke_test_eval/
+
+# Walk-forward 오케스트레이터 산출물 (재실행으로 재생성됨, 9월 4주차)
+results/walk_forward/
