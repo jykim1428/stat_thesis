@@ -69,33 +69,47 @@ def make_env(
 
 def make_env_by_date(
     start: str,
-    end: str,
+    end_exclusive: str,
     *,
     features: list[str],
     initial_amount: float,
     time_window: int,
-    warmup_hours: int = 0,
+    enable_warmup: bool = False,
     stats: dict | None = None,
     clip: tuple[float, float] | None = (-5.0, 5.0),
     cwd: str = "./",
 ) -> PortfolioOptimizationEnv:
-    """[start, end] 날짜 범위로 PortfolioOptimizationEnv를 생성 (walk-forward fold용).
+    """[start, end_exclusive) 날짜 범위로 PortfolioOptimizationEnv를 생성
+    (walk-forward fold용).
 
     make_env(split=...)와 달리 고정 split 라벨이 아니라 임의의 날짜 범위를
-    받는다. warmup_hours > 0이면 start보다 그만큼 앞선 시점부터 데이터를
+    받는다. 구간은 반개구간(start 포함, end_exclusive 미포함) - fold를
+    이어 붙일 때 end_exclusive를 다음 fold의 start로 그대로 쓰면 경계
+    누락/중복이 생기지 않는다.
+
+    enable_warmup=True이면 start보다 time_window시간 앞선 시점부터 데이터를
     포함해서 로드한다 (docs/walk_forward_design.md의 워밍업 처리 참고 -
     PortfolioOptimizationEnv는 첫 관측을 만드는 데 time_window개 과거 시점이
     필요하므로, OOS 구간 시작부터만 로드하면 그 구간 초반이 관측 워밍업으로
     소모되어 거래/수익률 기록에서 누락된다).
 
-    warmup_hours를 쓸 경우 반환된 env로 backtest()를 돌린 결과에는 워밍업
-    구간의 행이 섞여 있으므로, trim_warmup_rows()로 실제 OOS 시작 시점
-    이전 행을 잘라내야 한다.
+    (코덱스 리뷰 반영) 워밍업 시간 수를 자유 입력값(warmup_hours)이 아니라
+    이 bool 플래그로만 받는다 - warmup_hours가 time_window와 다르면 첫
+    거래 결과 시각이 OOS 시작 시각과 어긋나고, trim_warmup_rows()로 행만
+    잘라내도 초과 워밍업 구간에서 이미 발생한 거래의 포트폴리오 상태
+    (현금/보유 비중)가 OOS 구간으로 그대로 이어져 들어가는 조용한 오염이
+    생긴다 (실측: warmup=50일 때 OOS 시작 포트폴리오 가치 100,089.53,
+    warmup=51일 때 100,222.87로 달라짐 - trim으로 없어지지 않는 차이).
+    항상 정확히 time_window와 일치시켜야 하므로 bool로만 노출한다.
+
+    enable_warmup=True로 만든 env를 backtest()에 넘긴 결과는
+    trim_warmup_rows(oos_start=start)로 워밍업 구간을 잘라내야 한다.
 
     cwd: make_env()와 동일 - 병렬 실행(Optuna 다중 trial 등) 시 trial마다
     고유한 값을 지정해 results/rl/*.png 파일 충돌을 피할 것.
     """
-    df = load_env_ready_df_by_date(start=start, end=end, warmup_hours=warmup_hours)
+    warmup_hours = time_window if enable_warmup else 0
+    df = load_env_ready_df_by_date(start=start, end_exclusive=end_exclusive, warmup_hours=warmup_hours)
     env = PortfolioOptimizationEnv(
         df=df,
         initial_amount=initial_amount,
@@ -116,10 +130,17 @@ def make_env_by_date(
 def trim_warmup_rows(backtest_df: pd.DataFrame, oos_start: str) -> pd.DataFrame:
     """backtest() 결과에서 oos_start 이전(워밍업 구간) 행을 제거.
 
-    make_env_by_date(..., warmup_hours=N)으로 만든 env를 backtest()에 넘기면
-    결과 DataFrame의 인덱스가 (oos_start - N시간)부터 시작한다. 실제 성과지표
-    계산과 CSV 저장에는 oos_start 이후 행만 남겨야 워밍업 구간의 수익률/거래가
-    섞여 들어가지 않는다 (docs/walk_forward_design.md 참고).
+    make_env_by_date(..., enable_warmup=True)로 만든 env를 backtest()에
+    넘기면 결과 DataFrame의 첫 행(reset() 시점)은 oos_start 정확히 1시간
+    전이고, 그 다음 행(첫 실제 거래 결과)이 oos_start 시각을 갖는다.
+    실제 성과지표 계산과 CSV 저장에는 oos_start 이후 행만 남겨야 워밍업
+    구간의 수익률/거래가 섞여 들어가지 않는다 (docs/walk_forward_design.md
+    참고).
+
+    주의: enable_warmup=True로 만든 env에만 이 함수를 쓸 것. warmup 시간이
+    time_window와 어긋난 env(예: 과거의 자유 입력 warmup_hours 방식)라면
+    trim만으로는 워밍업 구간에서 이미 발생한 거래의 포트폴리오 상태 오염을
+    제거할 수 없다.
 
     reset() 시점의 초기 행(t=0, returns=0)은 oos_start 이전 시각을 가지므로
     이 필터링으로 자동으로 함께 제거된다.
@@ -128,8 +149,19 @@ def trim_warmup_rows(backtest_df: pd.DataFrame, oos_start: str) -> pd.DataFrame:
     trimmed = backtest_df[backtest_df.index >= oos_start_ts].copy()
     if trimmed.empty:
         raise ValueError(
-            f"oos_start={oos_start_ts} 이후 행이 없음 - warmup_hours 설정이나 "
+            f"oos_start={oos_start_ts} 이후 행이 없음 - enable_warmup 설정이나 "
             f"backtest_df 인덱스 범위를 확인하세요"
+        )
+    # 정확한 워밍업(enable_warmup=True, warmup_hours==time_window)이라면 trim 후
+    # 첫 행이 정확히 oos_start 시각이어야 한다. 이보다 뒤라면 워밍업이 부족해
+    # 관측이 덜 채워진 상태였다는 뜻이고(데이터 부족), 이 함수로는 감지되지만
+    # 원인은 make_env_by_date 호출 쪽에 있다.
+    first_row_ts = trimmed.index[0]
+    if first_row_ts != oos_start_ts:
+        raise ValueError(
+            f"trim 후 첫 행이 oos_start와 다름: 첫 행={first_row_ts}, "
+            f"oos_start={oos_start_ts}. enable_warmup=True와 정확한 time_window "
+            f"워밍업으로 생성된 env의 backtest 결과가 맞는지 확인하세요."
         )
     return trimmed
 
