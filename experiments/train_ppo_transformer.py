@@ -42,14 +42,21 @@ rollout/ep_rew_mean과 eval/mean_reward를 직접 비교하기는 어려움.
 val 환경도 train과 동일한 API 변환 경로(GymV21CompatibilityV0 ->
 Monitor)를 거치도록 함 - SB3의 "Monitor wrapper 없음" 경고 제거 및
 경로 일관성 확보.
+참고: make_env / backtest / sanity_check는 train_ppo_mlp.py와 공용으로
+쓰기 위해 cryptoagent.training.common으로 추출됨 (8월 2주차 이월 작업).
+
+W&B/tensorboard 연동 (9월 1주차 은아 구현)
+--------------------------------------------
+train_ppo_mlp.py 패턴을 그대로 이식: wandb.init(sync_tensorboard=True)로
+러닝을 열고, train()에 tensorboard_log/callback을 넘겨 WandbCallback으로
+학습 로그를 같은 프로젝트(cryptoagent-ppo)에 기록한다.
 """
 
 from __future__ import annotations
 
 import os
+from functools import partial
 
-import numpy as np
-import pandas as pd
 import shimmy
 import wandb
 from wandb.integration.sb3 import WandbCallback
@@ -58,8 +65,8 @@ from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-from cryptoagent.envs.adapter import load_env_ready_df, patch_seed_method
 from cryptoagent.envs.env_portfolio_optimization import PortfolioOptimizationEnv
+from cryptoagent.training.common import backtest, make_env as _make_env, sanity_check
 from cryptoagent.policies.transformer_extractor import TransformerFeaturesExtractor
 from cryptoagent.training.overfitting_monitor import make_eval_callback
 
@@ -84,18 +91,16 @@ BACKTEST_PATH = os.path.join(RESULTS_DIR, "backtest_test.csv")
 # ─────────────────────────────────────────────────────
 
 
-def make_env(split: str) -> PortfolioOptimizationEnv:
-    df = load_env_ready_df(split=split)
-    env = PortfolioOptimizationEnv(
-        df=df,
-        initial_amount=INITIAL_AMOUNT,
-        time_column="date",
-        tic_column="tic",
-        features=FEATURES,
-        time_window=TIME_WINDOW,
-    )
-    patch_seed_method(env)
-    return env
+# make_env/backtest/sanity_check는 cryptoagent.training.common 공용 모듈에서 가져옴
+# (train_ppo_mlp.py, train_ppo_lstm.py와 동일 패턴). 이 스크립트 설정값만
+# 미리 바인딩해서 make_env(split) 형태로 세 스크립트가 동일한 인터페이스를 갖게 함
+# - 오케스트레이션에서 모델 종류와 무관하게 make_env("train")로 호출 가능.
+make_env = partial(
+    _make_env,
+    features=FEATURES,
+    initial_amount=INITIAL_AMOUNT,
+    time_window=TIME_WINDOW,
+)
 
 
 def make_val_env():
@@ -146,49 +151,6 @@ def train(
     )
     model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=callback)
     return model
-
-
-def backtest(model: PPO, eval_env: PortfolioOptimizationEnv) -> pd.DataFrame:
-    """train_ppo_mlp.py의 backtest()와 동일 - 공용 스펙 DataFrame 생성."""
-    gym_env = shimmy.GymV21CompatibilityV0(env=eval_env)
-
-    obs, _ = gym_env.reset()
-    done = False
-    while not done:
-        action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = gym_env.step(action)
-        done = terminated or truncated
-
-    result = pd.DataFrame(
-        {
-            "date": eval_env._date_memory,
-            "returns": eval_env._portfolio_return_memory,
-            "portfolio_values": eval_env._asset_memory["final"],
-            "weights": [w.tolist() for w in eval_env._final_weights],
-            "target_weights": [w.tolist() for w in eval_env._actions_memory],
-        }
-    )
-    result["date"] = pd.to_datetime(result["date"])
-    result = result.set_index("date")
-    return result
-
-
-def sanity_check(backtest_df: pd.DataFrame) -> None:
-    # weights 벡터 안에 NaN이 섞이면 sum()이 NaN이 되고, pandas.Series.max()의
-    # 기본 skipna=True 때문에 그 행이 통계에서 조용히 빠져 max_dev가 정상값으로
-    # 나온다 - 벡터 원소 단위로 먼저 finite 여부를 확인해야 이 케이스를 놓치지 않는다.
-    assert backtest_df["weights"].apply(lambda w: np.isfinite(w).all()).all(), "weights에 NaN 또는 inf 존재"
-
-    weight_sums = backtest_df["weights"].apply(sum)
-    max_dev = (weight_sums - 1.0).abs().max()
-    assert max_dev < 1e-3, f"비중 합이 1에서 {max_dev}만큼 벗어남"
-
-    assert np.isfinite(backtest_df["returns"]).all(), "returns에 NaN 또는 inf 존재"
-    assert not backtest_df["portfolio_values"].isna().any(), "portfolio_values에 NaN 존재"
-    assert np.isfinite(backtest_df["portfolio_values"]).all(), "portfolio_values에 inf 존재"
-
-    print(f"[sanity_check] OK - 비중 합 최대 편차: {max_dev:.2e}")
-    print(f"[sanity_check] OK - 최종 포트폴리오 가치: {backtest_df['portfolio_values'].iloc[-1]:,.2f}")
 
 
 def main() -> None:
