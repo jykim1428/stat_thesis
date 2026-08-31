@@ -35,3 +35,10 @@ results/benchmarks/
 
 results/comparison_table.csv
 
+# Standardization ablation 실험 산출물 (재실행으로 재생성됨)
+results/ppo_mlp_ablation/
+results/ppo_transformer_ablation/
+results/ppo_lstm_ablation/
+
+# 오버피팅 모니터링 스모크 테스트 산출물
+results/smoke_test_eval/
