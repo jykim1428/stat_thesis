@@ -50,7 +50,7 @@ def make_env(
     patch_seed_method(env)
 
     if stats is not None:
-        env = TrainStandardizeWrapper(env, stats=stats)
+        env = TrainStandardizeWrapper(env, stats=stats, clip=clip)
 
     return env
 
@@ -64,7 +64,15 @@ def backtest(model, eval_env) -> pd.DataFrame:
 
     공용 스펙 (팀 합의):
         index: date (datetime)
-        columns: returns / portfolio_values / weights
+        columns: returns / portfolio_values / weights / target_weights
+
+    weights는 가격 변동을 반영한 사후(post-trade) 비중, target_weights는
+    해당 스텝에서 에이전트가 실제로 지시한 리밸런싱 목표 비중이다
+    (env._actions_memory, env_portfolio_optimization.py 참고). 거래량(turnover)은
+    반드시 target_weights[t]와 weights[t-1](직전 스텝 사후 비중)의 차이로
+    계산해야 한다 - weights[t]-weights[t-1]로 계산하면 가격 변동으로 인한
+    비중 변화까지 거래량으로 잘못 잡아 turnover가 과대계상된다
+    (evaluate.py의 compute_turnover_from_weights 참고).
     """
     gym_env = shimmy.GymV21CompatibilityV0(env=eval_env)
     obs, _ = gym_env.reset()
@@ -82,6 +90,7 @@ def backtest(model, eval_env) -> pd.DataFrame:
             "returns": base_env._portfolio_return_memory,
             "portfolio_values": base_env._asset_memory["final"],
             "weights": [w.tolist() for w in base_env._final_weights],
+            "target_weights": [w.tolist() for w in base_env._actions_memory],
         }
     )
     result["date"] = pd.to_datetime(result["date"])
@@ -91,11 +100,19 @@ def backtest(model, eval_env) -> pd.DataFrame:
 
 def sanity_check(backtest_df: pd.DataFrame) -> None:
     """비중 합=1, NaN/inf 없는지 최소 확인 (학습 스크립트 자체 방어용)."""
+    # weights/target_weights 벡터 안에 NaN이 섞이면 sum()이 NaN이 되고,
+    # pandas.Series.max()는 기본적으로 skipna=True라 그 행이 통계에서
+    # 조용히 빠져 max_dev가 정상값으로 나온다 - 반드시 벡터 원소 단위로
+    # 먼저 finite 여부를 확인해야 이 케이스를 놓치지 않는다.
+    weight_cols = ["weights"] + (["target_weights"] if "target_weights" in backtest_df.columns else [])
+    for col in weight_cols:
+        assert backtest_df[col].apply(lambda w: np.isfinite(w).all()).all(), f"{col}에 NaN 또는 inf 존재"
+
     weight_sums = backtest_df["weights"].apply(sum)
     max_dev = (weight_sums - 1.0).abs().max()
     assert max_dev < 1e-3, f"비중 합이 1에서 {max_dev}만큼 벗어남"
 
-    assert not backtest_df["returns"].isna().any(), "returns에 NaN 존재"
+    assert np.isfinite(backtest_df["returns"]).all(), "returns에 NaN 또는 inf 존재"
     assert not backtest_df["portfolio_values"].isna().any(), "portfolio_values에 NaN 존재"
     assert np.isfinite(backtest_df["portfolio_values"]).all(), "portfolio_values에 inf 존재"
 

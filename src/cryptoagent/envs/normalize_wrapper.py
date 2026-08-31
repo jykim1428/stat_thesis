@@ -69,10 +69,20 @@ def normalize_with_stats(
 
 
 class TrainStandardizeWrapper(gym.Wrapper):
-    """... (기존 docstring 유지) ..."""
+    """... (기존 docstring 유지) ...
+
+    PortfolioOptimizationEnv(return_last_action=True)는 observation을
+    {"state": (feature, asset, time), "last_action": (...)} 형태의 Dict로
+    반환한다 (return_last_action=False 기본값이면 Box). 이 wrapper는 두
+    경우 모두 지원한다 - Dict일 때는 "state" 원소만 표준화하고
+    "last_action"은 그대로 통과시키며, observation_space도 Dict 구조를
+    유지한 채 "state"의 space만 Box(-inf, inf)로 갱신한다.
+    """
 
     def __init__(self, env, stats: dict | None = None, clip: tuple[float, float] | None = (-5.0, 5.0)):
         super().__init__(env)
+
+        self._is_dict_obs = isinstance(env.observation_space, spaces.Dict)
 
         if stats is not None:
             if "tic_order" in stats:
@@ -100,11 +110,22 @@ class TrainStandardizeWrapper(gym.Wrapper):
         self.clip = clip
 
         if stats is not None:
-            self.observation_space = spaces.Box(
-                low=-np.inf, high=np.inf,
-                shape=env.observation_space.shape,
-                dtype=np.float32,
-            )
+            if self._is_dict_obs:
+                state_space = env.observation_space["state"]
+                self.observation_space = spaces.Dict({
+                    "state": spaces.Box(
+                        low=-np.inf, high=np.inf,
+                        shape=state_space.shape,
+                        dtype=np.float32,
+                    ),
+                    "last_action": env.observation_space["last_action"],
+                })
+            else:
+                self.observation_space = spaces.Box(
+                    low=-np.inf, high=np.inf,
+                    shape=env.observation_space.shape,
+                    dtype=np.float32,
+                )
 
     def reset(self, **kwargs):
         result = self.env.reset(**kwargs)
@@ -121,12 +142,23 @@ class TrainStandardizeWrapper(gym.Wrapper):
     def _normalize(self, obs):
         if self.stats is None:
             return obs
+        if self._is_dict_obs:
+            state = np.asarray(obs["state"], dtype=np.float32)
+            normalized_state = normalize_with_stats(state, self.stats["mean"], self.stats["std"], self.clip)
+            return {"state": normalized_state.astype(np.float32), "last_action": obs["last_action"]}
         obs = np.asarray(obs, dtype=np.float32)
         normalized = normalize_with_stats(obs, self.stats["mean"], self.stats["std"], self.clip)
         return normalized.astype(np.float32)
 
 
 def compute_train_stats(train_env) -> dict:
+    """train split의 자산×feature별 mean/std를 계산.
+
+    (코덱스 리뷰 반영) mean/std의 NaN/inf, train std가 tolerance 이하인
+    축(상수 feature 의심)을 여기서 직접 검증. wrapper 생성이 아니라 stats
+    계산 시점에 막아야 "wrapper는 생성됐지만 내부 통계가 이미 잘못된"
+    상황을 방지할 수 있음.
+    """
     df = train_env._df
     tic_col = train_env._tic_column
     features = train_env._features
@@ -136,7 +168,24 @@ def compute_train_stats(train_env) -> dict:
     std_per_tic = df.groupby(tic_col)[features].std(ddof=0).loc[tic_order]
 
     mean = mean_per_tic.to_numpy().T[:, :, np.newaxis].astype(np.float32)
-    std = (std_per_tic.to_numpy().T[:, :, np.newaxis] + 1e-8).astype(np.float32)
+    raw_std = std_per_tic.to_numpy().T[:, :, np.newaxis].astype(np.float32)
+
+    if not np.all(np.isfinite(mean)) or not np.all(np.isfinite(raw_std)):
+        raise ValueError("train stats에 NaN/inf가 포함되어 있음 - 원본 데이터 확인 필요")
+
+    tolerance = 1e-6
+    if np.any(raw_std <= tolerance):
+        bad_count = int(np.sum(raw_std <= tolerance))
+        raise ValueError(
+            f"train 구간에서 표준편차가 {tolerance} 이하인 axis가 {bad_count}개 "
+            f"발견됨 (상수 feature 의심) - 표준화 대상에서 제외하거나 원본 데이터 확인 필요"
+        )
+
+    expected_shape = (len(features), len(tic_order), 1)
+    if mean.shape != expected_shape or raw_std.shape != expected_shape:
+        raise ValueError(f"stats shape 불일치: mean={mean.shape}, std={raw_std.shape}, 기대값={expected_shape}")
+
+    std = raw_std + 1e-8  # 검증 통과 후에만 epsilon 추가 (0 나눗셈 방지용)
 
     return {"mean": mean, "std": std, "tic_order": tic_order, "features": features}
 
@@ -176,6 +225,8 @@ def verify_on_split(train_env, target_env, clip: tuple[float, float] | None = (-
     all_normalized = []
     for i, tic in enumerate(tic_order):
         tic_data = target_df[target_df[tic_col] == tic][features].to_numpy(dtype=np.float32)
+        if not np.all(np.isfinite(tic_data)):
+            raise ValueError(f"target_env({tic})의 데이터에 NaN/inf가 포함되어 있음 - 원본 데이터 확인 필요")
         mean_i = stats["mean"][:, i, 0]
         std_i = stats["std"][:, i, 0]
         normalized = normalize_with_stats(tic_data, mean_i, std_i, clip)

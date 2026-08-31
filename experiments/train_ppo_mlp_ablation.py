@@ -34,6 +34,7 @@ from wandb.integration.sb3 import WandbCallback
 from cryptoagent.envs.adapter import load_env_ready_df, patch_seed_method
 from cryptoagent.envs.env_portfolio_optimization import PortfolioOptimizationEnv
 from cryptoagent.envs.normalize_wrapper import TrainStandardizeWrapper, compute_train_stats
+from cryptoagent.envs.evaluate import compute_turnover_from_weights
 
 # ── 아키텍처 고유 설정 ──────────────────────────────
 ARCHITECTURE = "mlp"
@@ -115,19 +116,28 @@ def backtest(model: PPO, eval_env) -> pd.DataFrame:
         "returns": base_env._portfolio_return_memory,
         "portfolio_values": base_env._asset_memory["final"],
         "weights": [w.tolist() for w in base_env._final_weights],
+        "target_weights": [w.tolist() for w in base_env._actions_memory],
     })
     return result.assign(date=pd.to_datetime(result["date"])).set_index("date")
 
 
 def summarize(backtest_df: pd.DataFrame) -> dict[str, float]:
+    """turnover는 evaluate.py의 compute_turnover_from_weights를 재사용한다.
+
+    이전 버전은 |weights[t]-weights[t-1]|로 turnover를 근사했는데, weights는
+    가격 변동을 반영한 사후 비중이라 이 방식은 가격 변동분까지 거래량으로
+    잘못 포함해 실제보다 과대계상한다(실측 약 1.2~1.45배). target_weights(그
+    스텝의 목표 비중)와 직전 weights의 차이로 계산해야 진짜 거래량이 나온다.
+    """
     returns = backtest_df["returns"].astype(float).replace([np.inf, -np.inf], np.nan).dropna()
     values = backtest_df["portfolio_values"].astype(float)
     sharpe = (float(np.sqrt(24 * 365) * returns.mean() / returns.std(ddof=0))
               if returns.std(ddof=0) != 0 else float("nan"))
     drawdown = values / values.cummax() - 1.0
-    weights = np.vstack(backtest_df["weights"].to_numpy())
-    turnover = (float(np.abs(np.diff(weights, axis=0)).sum(axis=1).mean() / 2)
-                if len(weights) > 1 else 0.0)
+    turnover_series = compute_turnover_from_weights(
+        backtest_df["weights"], backtest_df["target_weights"]
+    )
+    turnover = float(turnover_series.mean()) if len(turnover_series) > 1 else 0.0
     return {
         "final_value": float(values.iloc[-1]),
         "cumulative_return": float(values.iloc[-1] / values.iloc[0] - 1.0),
@@ -146,6 +156,15 @@ def sanity_check(backtest_df: pd.DataFrame, split: str) -> None:
         raise ValueError(f"[{split}] portfolio_values에 NaN 존재")
     if not np.isfinite(backtest_df["portfolio_values"]).all():
         raise ValueError(f"[{split}] portfolio_values에 inf 존재")
+
+    # weights/target_weights 벡터 안에 NaN이 섞이면 sum()이 NaN이 되고,
+    # pandas.Series.max()는 기본적으로 skipna=True라 그 행이 통계에서
+    # 조용히 빠져 max_dev가 정상값으로 나온다 - 반드시 벡터 원소 단위로
+    # 먼저 finite 여부를 확인해야 이 케이스를 놓치지 않는다.
+    for col in ("weights", "target_weights"):
+        if not backtest_df[col].apply(lambda w: np.isfinite(w).all()).all():
+            raise ValueError(f"[{split}] {col}에 NaN 또는 inf 존재")
+
     weight_sums = backtest_df["weights"].apply(sum)
     max_dev = (weight_sums - 1.0).abs().max()
     if max_dev >= 1e-3:
@@ -194,7 +213,7 @@ def save_artifacts(results_dir: Path, train_stats, cond: dict, args) -> None:
 
 
 def has_complete_prior_run(results_dir: Path, needs_stats: bool) -> bool:
-    required = ["model.zip", "experiment_config.json", "manifest.json", "val_metrics.json"]
+    required = ["model.zip", "experiment_config.json", "manifest.json", "val_metrics.json", "val_backtest.csv"]
     if needs_stats:
         required.append("normalization_stats.npz")
     return all((results_dir / name).exists() for name in required)
