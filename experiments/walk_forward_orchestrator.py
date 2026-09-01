@@ -199,11 +199,25 @@ class RunSpec:
         }
 
 
-def build_model(policy: str, vec_env, seed: int, hparams: dict) -> PPO:
+def build_model(policy: str, vec_env, seed: int, hparams: dict, device: str = "auto") -> PPO:
+    """device: "auto"(SB3 기본, CUDA 있으면 GPU) / "cpu" / "cuda".
+
+    파일럿 실측 결과(2026-09-01, Colab T4) - MLP와 우리 규모의 Transformer
+    (d_model=32) 둘 다 파라미터 수가 작고 PortfolioOptimizationEnv.step()
+    자체가 pandas 기반 CPU 바운드라, GPU로 보내는 텐서 전송 오버헤드가
+    연산 이득보다 커서 오히려 CPU보다 느렸다 (MLP: CPU 292fps vs GPU 54fps,
+    Transformer: CPU 29fps vs GPU 45fps - Transformer만 근소하게 GPU가
+    유리했고 MLP는 GPU가 5배 이상 느림). SB3 자체도 MlpPolicy를 GPU에서
+    돌리면 이런 경고를 낸다 (DLR-RM/stable-baselines3#1245). 그래서 이
+    함수 시그니처에 device를 노출해 실행할 때 명시적으로 고를 수 있게
+    했다 - 학습 결과(가중치)는 device와 무관하게 동일해야 하므로
+    RunSpec.as_config_dict()에는 포함하지 않는다 (resume 판단에 영향을
+    주면 안 되는 순수 실행 환경 설정).
+    """
     ppo_kwargs = {k: hparams[k] for k in PPO_HPARAM_KEYS if k in hparams}
 
     if policy == "mlp":
-        return PPO("MlpPolicy", vec_env, verbose=1, seed=seed, **ppo_kwargs)
+        return PPO("MlpPolicy", vec_env, verbose=1, seed=seed, device=device, **ppo_kwargs)
 
     if policy == "transformer":
         policy_kwargs = dict(
@@ -214,7 +228,9 @@ def build_model(policy: str, vec_env, seed: int, hparams: dict) -> PPO:
                 n_layers=hparams["n_layers"],
             ),
         )
-        return PPO("MlpPolicy", vec_env, policy_kwargs=policy_kwargs, verbose=1, seed=seed, **ppo_kwargs)
+        return PPO(
+            "MlpPolicy", vec_env, policy_kwargs=policy_kwargs, verbose=1, seed=seed, device=device, **ppo_kwargs
+        )
 
     raise ValueError(f"지원하지 않는 policy: {policy} (mlp/transformer만 walk-forward 대상)")
 
@@ -333,7 +349,7 @@ def aggregate_summary(policy: str, fold: str) -> None:
         writer.writerows(rows)
 
 
-def run_one(spec: RunSpec) -> None:
+def run_one(spec: RunSpec, device: str = "auto") -> None:
     if is_completed(spec):
         print(f"[skip] {spec.run_dir} 이미 completed (config 일치, 산출물 실존 확인됨) - resume 원칙에 따라 건너뜀")
         return
@@ -343,14 +359,14 @@ def run_one(spec: RunSpec) -> None:
     with open(config_path, "w") as f:
         json.dump(spec.as_config_dict(), f, indent=2)
 
-    print(f"=== [{spec.run_dir}] 학습 시작 (train {spec.train_range}) ===")
+    print(f"=== [{spec.run_dir}] 학습 시작 (train {spec.train_range}, device={device}) ===")
     start_time = time.time()
 
     train_env = make_train_env(spec)
     gym_env = shimmy.GymV21CompatibilityV0(env=train_env)
     vec_env = DummyVecEnv([lambda: Monitor(gym_env)])
 
-    model = build_model(spec.policy, vec_env, spec.seed, spec.hparams)
+    model = build_model(spec.policy, vec_env, spec.seed, spec.hparams, device=device)
     model.learn(total_timesteps=spec.hparams["total_timesteps"])
 
     model_path = os.path.join(spec.run_dir, "model.zip")
@@ -471,6 +487,18 @@ def parse_args() -> argparse.Namespace:
             "fold1_final/fold2_final: locked_candidates.json에 등록된 확정 후보만 실행 가능."
         ),
     )
+    parser.add_argument(
+        "--device",
+        choices=("auto", "cpu", "cuda"),
+        default="auto",
+        help=(
+            "PPO 학습에 쓸 디바이스. 기본 auto는 SB3가 CUDA 가용 여부로 자동 선택 - "
+            "MLP와 우리 규모의 Transformer(d_model=32)는 파라미터가 작고 env.step()이 "
+            "pandas 기반 CPU 바운드라 GPU 전송 오버헤드가 더 클 수 있다 (2026-09-01 "
+            "Colab T4 파일럿 실측: MLP는 CPU가 GPU보다 5배 이상 빠름). 병렬로 로컬/"
+            "Colab을 같이 쓸 때 이 옵션으로 각 환경에 맞는 디바이스를 명시할 것."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -498,7 +526,7 @@ def main() -> None:
         specs = [builder(args.policy, candidate, seed, hparams)]
 
     for spec in specs:
-        run_one(spec)
+        run_one(spec, device=args.device)
 
 
 if __name__ == "__main__":
