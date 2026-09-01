@@ -153,19 +153,29 @@ FOLD2_OOS = ("2025-01-02", "2026-01-01")
 # 설정) 조용히 무시되지 않도록 build_model()에서 명시적으로만 꺼내 쓴다.
 PPO_HPARAM_KEYS = ("learning_rate", "gamma", "batch_size", "n_steps", "n_epochs", "ent_coef", "clip_range")
 
-# ── Fold 1 하이퍼파라미터 후보 (파일럿/스켈레톤 검증용 초기값) ──
-# N, S는 docs/colab_compute_budget.md 11절에 따라 파일럿 완료 후 확정한다.
-# 여기 있는 값은 오케스트레이터 인프라 자체를 검증하기 위한 자리표시 후보이며,
-# 정식 실행 전 실제 후보 목록으로 교체한다.
+# ── Fold 1 하이퍼파라미터 후보 (2026-09-01 파일럿 완료 후 확정, N=4/S=3) ──
+# 파일럿(10,240 step, 로컬 CPU 기준 MLP 36.7초/Transformer 423.8초, Colab T4는
+# 오히려 5배 느림 - docs/colab_compute_budget.md 11절 참고)으로 fps를 확인한
+# 뒤 총 학습 횟수(N+2)×S가 로컬에서 하루 안에 끝나는 수준으로 N=4, S=3을
+# 확정했다. "작게 시작 - 파라미터 많으면 오버피팅 직행" 원칙(같은 문서)에
+# 따라 구조를 키우는 후보 대신 learning_rate 변형과 축소(n_epochs 절반,
+# d_model/n_layers 축소) 위주로 구성한다. total_timesteps=51_200은
+# colab_compute_budget.md 2절의 기준 실행 규모(2048×25)와 동일.
 MLP_CANDIDATES: dict[str, dict] = {
-    "candidate01": {"total_timesteps": 10_240},
+    "candidate01": {"total_timesteps": 51_200},  # PPO 기본값 (learning_rate=3e-4, n_epochs=10)
+    "candidate02": {"total_timesteps": 51_200, "learning_rate": 1e-4},  # 더 보수적
+    "candidate03": {"total_timesteps": 51_200, "learning_rate": 1e-3},  # 더 공격적
+    "candidate04": {"total_timesteps": 51_200, "n_epochs": 5},  # 오버피팅 방지 방향
 }
 
 TRANSFORMER_CANDIDATES: dict[str, dict] = {
-    "candidate01": {"total_timesteps": 10_240, "d_model": 32, "n_heads": 4, "n_layers": 2},
+    "candidate01": {"total_timesteps": 51_200, "d_model": 32, "n_heads": 4, "n_layers": 2},  # 기본값
+    "candidate02": {"total_timesteps": 51_200, "d_model": 32, "n_heads": 4, "n_layers": 2, "learning_rate": 1e-4},
+    "candidate03": {"total_timesteps": 51_200, "d_model": 16, "n_heads": 4, "n_layers": 2},  # 축소 (오버피팅 방지)
+    "candidate04": {"total_timesteps": 51_200, "d_model": 32, "n_heads": 4, "n_layers": 1},  # 축소 (오버피팅 방지)
 }
 
-SEEDS = [42]
+SEEDS = [42, 43, 44]
 
 
 @dataclass
