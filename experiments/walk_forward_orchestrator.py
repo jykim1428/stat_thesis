@@ -36,13 +36,26 @@ backtest_df 첫 행이 2023-01-04 01:00으로 49시간 뒤였음). train/val/OOS
 적용해야 한다 - "구간 시작 시점의 성과만 워밍업으로 소모돼 빠진다"는 문제는
 val이든 OOS든 다르지 않다.
 
-OOS 실행 잠금 (코덱스 리뷰 반영 - Major #2)
------------------------------------------------
+OOS 실행 잠금 (코덱스 리뷰 반영 - Major #2, seed 처리는 2026-09-02 2차 리뷰로 수정)
+------------------------------------------------------------------------------------
 fold1_final/fold2_final은 자리표시 후보로도 바로 실행할 수 있으면 안 된다.
 docs/colab_compute_budget.md의 "OOS 결과를 본 뒤 후보/seed 수를 바꾸지 않는다"
 원칙을 지키려면, Fold 1 validation 결과로 후보를 확정한 후 그 결정을
 LOCKED_CANDIDATES_PATH(JSON)에 명시적으로 기록해야만 final 단계 실행을
-허용해야 한다. 파일이 없거나 요청한 policy/candidate/seed 조합이 그 안에
+허용해야 한다.
+
+seed는 하이퍼파라미터가 아니라 반복 실험이므로 "가장 좋았던 seed 하나"를
+골라 final을 그 seed로만 실행하면 안 된다 - 그러면 seed 선택 자체가 암묵적인
+사후 튜닝이 되어버린다 (2026-09-02 코덱스 2차 리뷰에서 지적, 최초 구현의
+결함). locked_candidates.json은 candidate당 seed 목록(fold1_search에서 쓴
+[42, 43, 44] 전체)을 담고, fold1_final/fold2_final은 그 seed 전부에 대해
+재학습해서 OOS 성과도 seed 평균±표준편차로 보고한다.
+
+lock 파일은 results/walk_forward/ 아래(.gitignore 대상)가 아니라
+configs/walk_forward_locked_candidates.json처럼 추적되는 위치에 둔다 -
+이 결정 자체가 재현성 기록의 일부라 git 히스토리에 남아야 한다.
+
+파일이 없거나 요청한 policy/candidate/seed 조합이 그 안에
 없으면 즉시 거부한다.
 
 Resume 검증 강화 (코덱스 리뷰 반영 - Major #3)
@@ -138,7 +151,9 @@ FEATURES = ["close", "high", "low"]
 INITIAL_AMOUNT = 100_000
 TIME_WINDOW = 50
 RESULTS_ROOT = "results/walk_forward"
-LOCKED_CANDIDATES_PATH = os.path.join(RESULTS_ROOT, "locked_candidates.json")
+# results/ 아래(.gitignore 대상)가 아니라 추적되는 위치에 둔다 - 후보/seed 확정
+# 결정 자체가 재현성 기록의 일부라 git 히스토리에 남아야 한다 (2026-09-02 리뷰).
+LOCKED_CANDIDATES_PATH = "configs/walk_forward_locked_candidates.json"
 
 # ── Fold 날짜 경계 (docs/walk_forward_design.md, 반개구간) ──
 FOLD1_TRAIN = ("2021-01-01", "2023-01-02")
@@ -437,16 +452,23 @@ def build_fold1_search_specs(policy: str) -> list[RunSpec]:
 
 
 def _load_locked_candidates() -> dict:
-    """fold1_final/fold2_final 실행 잠금 (Major #2 수정).
+    """fold1_final/fold2_final 실행 잠금 (Major #2 수정, seed는 2026-09-02 2차 리뷰로 배열화).
 
-    후보/seed 선택이 side_2023 validation 결과로 확정된 뒤에만 이 파일을
-    직접 만들어서 final 단계 실행을 허용한다. 파일이 없으면 자리표시
-    candidate01로 최종/OOS 학습이 실수로 실행되는 것을 원천 차단한다.
+    후보 선택이 side_2023 validation 결과로 확정된 뒤에만 이 파일을 직접
+    만들어서 final 단계 실행을 허용한다. 파일이 없으면 자리표시 candidate01로
+    최종/OOS 학습이 실수로 실행되는 것을 원천 차단한다.
 
-    형식:
+    seeds는 fold1_search에서 쓴 seed 목록을 그대로 배열로 담는다 - "제일 좋았던
+    seed 하나"를 final에 쓰면 seed 선택이 암묵적 사후 튜닝이 되므로 금지
+    (모듈 docstring "OOS 실행 잠금" 참고). final 단계는 이 배열의 모든 seed로
+    재학습해서 OOS 성과를 seed 평균±표준편차로 보고한다.
+
+    형식 (configs/walk_forward_locked_candidates.json):
         {
-          "mlp": {"candidate": "candidate03", "seed": 42},
-          "transformer": {"candidate": "candidate02", "seed": 42}
+          "selection_rule": "highest mean net Sharpe across seeds; tie: worst-seed Sharpe, Calmar, complexity",
+          "cost_rate": 0.001,
+          "mlp": {"candidate": "candidate03", "seeds": [42, 43, 44]},
+          "transformer": {"candidate": "candidate04", "seeds": [42, 43, 44]}
         }
     """
     if not os.path.exists(LOCKED_CANDIDATES_PATH):
@@ -524,7 +546,7 @@ def main() -> None:
                 f"{LOCKED_CANDIDATES_PATH}에 policy={args.policy}에 대한 확정 후보가 없습니다."
             )
         candidate = locked[args.policy]["candidate"]
-        seed = locked[args.policy]["seed"]
+        seeds = locked[args.policy]["seeds"]
         candidates = MLP_CANDIDATES if args.policy == "mlp" else TRANSFORMER_CANDIDATES
         if candidate not in candidates:
             raise SystemExit(
@@ -533,7 +555,9 @@ def main() -> None:
             )
         hparams = candidates[candidate]
         builder = build_fold1_final_spec if args.stage == "fold1_final" else build_fold2_final_spec
-        specs = [builder(args.policy, candidate, seed, hparams)]
+        # seed는 하이퍼파라미터가 아니라 반복 실험 - "제일 좋은 seed"만 골라 final을
+        # 돌리면 안 되므로 locked_candidates.json에 등록된 seed 전부를 재학습한다.
+        specs = [builder(args.policy, candidate, seed, hparams) for seed in seeds]
 
     for spec in specs:
         run_one(spec, device=args.device)

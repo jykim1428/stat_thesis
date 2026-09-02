@@ -1,0 +1,22 @@
+{
+  "_comment": "Fold 1 side_2023 validation 결과로 확정한 최종 후보. 2026-09-02, docs/walk_forward_design.md와 walk_forward_orchestrator.py의 fold1_final/fold2_final 실행 잠금(LOCKED_CANDIDATES_PATH)이 참조함. OOS(bull_2024, choppy_2025) 확인 전 동결 - 이후 재조정 금지.",
+  "selection_rule": "정책망별로 고정된 3개 seed(42/43/44)의 거래비용 차감(net) validation Sharpe 산술평균이 최대인 후보를 선택한다. 소수점 셋째 자리까지 동률이면 (1) 최저 seed Sharpe가 높은 후보, 그래도 동률이면 (2) 평균 Calmar가 높은 후보, 그래도 동률이면 (3) 더 작은 구조/낮은 계산비용의 후보를 선택한다. 표준편차는 선택 점수에 포함하지 않고 불확실성으로 별도 보고한다.",
+  "selection_rule_note": "후보/seed 조합 자체는 fold1_search 실행 전에 고정했으나, 이 selection_rule 문구는 validation 결과를 검토한 뒤 확정했다 - 따라서 '사전 정의된 기준'이 아니라 'validation 결과 검토 후 확정하고 OOS 확인 전 동결한 기준'으로 기록한다 (2026-09-02 리뷰 반영).",
+  "cost_rate": 0.001,
+  "mlp": {
+    "candidate": "candidate03",
+    "hparams_note": "learning_rate=1e-3",
+    "seeds": [42, 43, 44],
+    "validation_sharpe_mean": 0.762,
+    "validation_sharpe_std": 0.045,
+    "validation_sharpe_worst_seed": 0.712
+  },
+  "transformer": {
+    "candidate": "candidate04",
+    "hparams_note": "n_layers=1 (기본 2에서 축소)",
+    "seeds": [42, 43, 44],
+    "validation_sharpe_mean": 0.859,
+    "validation_sharpe_std": 0.058,
+    "validation_sharpe_worst_seed": 0.794
+  }
+}
