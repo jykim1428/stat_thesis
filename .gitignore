@@ -46,3 +46,4 @@ results/smoke_test_eval/
 # Walk-forward 오케스트레이터 산출물 (재실행으로 재생성됨, 9월 4주차)
 results/walk_forward/
 results/walk_forward_benchmarks/
+results/walk_forward_behavior_diagnostics/
