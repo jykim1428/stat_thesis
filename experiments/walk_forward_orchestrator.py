@@ -132,12 +132,13 @@ import time
 from dataclasses import dataclass, field
 from glob import glob
 
+import pandas as pd
 import shimmy
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-from cryptoagent.envs.evaluate import evaluate as compute_eval_metrics
+from cryptoagent.envs.evaluate import compute_turnover_from_weights, evaluate as compute_eval_metrics
 from cryptoagent.policies.transformer_extractor import TransformerFeaturesExtractor
 from cryptoagent.training.common import (
     backtest,
@@ -162,6 +163,12 @@ FOLD1_FINAL_TRAIN = ("2021-01-01", "2023-10-16")
 FOLD1_OOS = ("2023-10-16", "2025-01-02")
 FOLD2_FINAL_TRAIN = ("2021-01-01", "2025-01-02")
 FOLD2_OOS = ("2025-01-02", "2026-01-01")
+
+# evaluate.py의 기본값과 동일. fold1_final/fold2_final은 locked_candidates.json의
+# cost_rate를 명시적으로 전달받는다 (2026-09-07 코덱스 리뷰 반영 - 이전에는
+# lock 파일에 기록만 되고 실제 evaluate() 호출은 이 기본값에 암묵 의존했음).
+# fold1_search는 아직 lock 파일이 없는 탐색 단계라 이 기본값을 그대로 쓴다.
+DEFAULT_COST_RATE = 0.001
 
 # PPO(...) 생성자에 그대로 전달할 수 있는 하이퍼파라미터 allowlist.
 # hparams에 이 목록 밖의 키가 있어도(total_timesteps, d_model 등 policy 전용
@@ -341,10 +348,23 @@ def is_completed(spec: RunSpec) -> bool:
 def aggregate_summary(policy: str, fold: str) -> None:
     """{policy}/{fold} 아래 모든 completed run의 metrics.json을 모아 summary.csv를 통째로 재생성.
 
-    병렬 실행 시 공용 CSV에 동시에 append하면 헤더 중복/행 충돌이 날 수 있어
-    (Major #4), run별로는 자기 디렉토리 안 metrics.json만 원자적으로 쓰고
-    summary.csv는 매 실행 종료 후 이 함수가 그 시점의 전체 상태로부터 새로
-    만든다 - 어느 프로세스가 마지막에 끝나든 결과가 누락/충돌되지 않는다.
+    run별로는 자기 디렉토리 안 metrics.json만 원자적으로 쓰고, summary.csv는
+    매 실행 종료 후 이 함수가 그 시점의 전체 상태로부터 새로 만든다.
+
+    쓰기 자체는 임시 파일 + os.replace로 원자적이라 "쓰다 만 절반짜리 CSV"가
+    읽히는 일은 없다 (2026-09-07 코덱스 리뷰 - Moderate: 이전에는
+    open(path, "w")로 직접 덮어써서, 두 프로세스가 동시에 aggregate를 돌리면
+    한쪽이 파일을 비우는 순간 다른 쪽 read가 끼어들 여지가 있었다).
+
+    다만 이것만으로 병렬 실행이 완전히 안전해지는 것은 아니다 - 두 프로세스가
+    "스캔 시점"의 파일 목록을 각자 읽고 각자 재생성하므로, A가 오래된 상태를
+    스캔한 뒤 B가 새 run을 완료하고 자기 aggregate까지 끝낸 다음 A가 자신의
+    (오래된 스냅샷 기반) 결과로 마지막에 덮어쓰면 B가 반영한 행이 순간적으로
+    사라질 수 있다. 각 run의 metrics.json 자체는 항상 정확하므로 데이터
+    손실은 아니고, summary.csv를 다시 aggregate_summary()로 재생성하면
+    즉시 복구된다 - 진짜 정합성이 필요한 병렬 실행이라면 run별 metrics.json을
+    유일한 authoritative source로 삼고 모든 작업이 끝난 뒤 별도의 단일
+    집계 단계를 한 번만 돌리는 방식을 쓸 것.
     """
     import csv
 
@@ -368,13 +388,37 @@ def aggregate_summary(policy: str, fold: str) -> None:
     if not rows:
         return
     fieldnames = list(rows[0].keys())
-    with open(summary_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+
+    directory = os.path.dirname(summary_path)
+    fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".tmp_", suffix=".csv")
+    try:
+        with os.fdopen(fd, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+        os.replace(tmp_path, summary_path)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
 
 
-def run_one(spec: RunSpec, device: str = "auto") -> None:
+def compute_net_final_value(backtest_df: pd.DataFrame, initial_amount: float, cost_rate: float) -> float:
+    """거래비용을 차감한 net returns를 누적해 net 최종 자산가치를 계산.
+
+    backtest_df["portfolio_values"]는 env가 만드는 gross(비용 차감 전) 값이다
+    (2026-09-07 코덱스 리뷰 - Major: evaluate()는 Sharpe/CAGR/MDD를 net_returns
+    기준으로 계산하는데 orchestrator는 gross portfolio_values를 그대로
+    final_portfolio_value로 저장해서 지표와 자산가치가 서로 다른 기준을 섞어
+    쓰고 있었다). evaluate.py의 net_returns 계산과 동일한 공식
+    (returns - turnover*cost_rate)을 그대로 재현한다.
+    """
+    turnover = compute_turnover_from_weights(backtest_df["weights"], backtest_df["target_weights"])
+    net_returns = (backtest_df["returns"] - turnover * cost_rate).dropna()
+    return float(initial_amount * (1 + net_returns).cumprod().iloc[-1])
+
+
+def run_one(spec: RunSpec, device: str = "auto", cost_rate: float = DEFAULT_COST_RATE) -> None:
     if is_completed(spec):
         print(f"[skip] {spec.run_dir} 이미 completed (config 일치, 산출물 실존 확인됨) - resume 원칙에 따라 건너뜀")
         return
@@ -411,13 +455,22 @@ def run_one(spec: RunSpec, device: str = "auto") -> None:
     backtest_df.to_csv(backtest_path)
     print(f"백테스트 결과 저장: {backtest_path} shape={backtest_df.shape}")
 
-    eval_metrics = compute_eval_metrics(backtest_df)
+    eval_metrics = compute_eval_metrics(backtest_df, cost_rate=cost_rate)
+    net_final_value = compute_net_final_value(backtest_df, INITIAL_AMOUNT, cost_rate)
 
     metrics = {
         "total_timesteps": spec.hparams["total_timesteps"],
         "train_elapsed_sec": round(train_elapsed, 1),
         "eval_elapsed_sec": round(eval_elapsed, 1),
-        "final_portfolio_value": round(float(backtest_df["portfolio_values"].iloc[-1]), 2),
+        # gross: env가 만드는 비용 차감 전 자산가치 경로의 마지막 값.
+        # net: evaluate()의 Sharpe/CAGR/MDD와 동일 기준(net_returns 누적)의
+        # 최종 자산가치 - 둘을 "final_portfolio_value" 하나로 뭉뚱그리면
+        # 지표(net 기준)와 자산가치(과거엔 gross)가 서로 다른 기준을 섞어
+        # 쓰게 된다 (2026-09-07 코덱스 리뷰, Major). 논문 누적수익률/drawdown
+        # 곡선은 net_final_portfolio_value 쪽 경로(net_returns 누적)를 써야 함.
+        "gross_final_portfolio_value": round(float(backtest_df["portfolio_values"].iloc[-1]), 2),
+        "net_final_portfolio_value": round(net_final_value, 2),
+        "cost_rate": cost_rate,
         "n_eval_rows": len(backtest_df),
         **eval_metrics,
     }
@@ -536,6 +589,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    cost_rate = DEFAULT_COST_RATE
 
     if args.stage == "fold1_search":
         specs = build_fold1_search_specs(args.policy)
@@ -547,6 +601,9 @@ def main() -> None:
             )
         candidate = locked[args.policy]["candidate"]
         seeds = locked[args.policy]["seeds"]
+        # lock 파일에 기록된 cost_rate를 실제 evaluate() 호출에 전달한다 - 이전에는
+        # 기록만 되고 실제로는 DEFAULT_COST_RATE에 암묵 의존했다 (2026-09-07 리뷰).
+        cost_rate = locked.get("cost_rate", DEFAULT_COST_RATE)
         candidates = MLP_CANDIDATES if args.policy == "mlp" else TRANSFORMER_CANDIDATES
         if candidate not in candidates:
             raise SystemExit(
@@ -560,7 +617,7 @@ def main() -> None:
         specs = [builder(args.policy, candidate, seed, hparams) for seed in seeds]
 
     for spec in specs:
-        run_one(spec, device=args.device)
+        run_one(spec, device=args.device, cost_rate=cost_rate)
 
 
 if __name__ == "__main__":
