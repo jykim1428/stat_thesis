@@ -40,3 +40,7 @@ PyPortfolioOpt==1.6.0
 # (configparser.SafeConfigParser 제거로 인한 빌드 에러). 같은 empyrical
 # 네임스페이스로 import되는 유지보수 포크를 대신 씀 - 코드는 무수정.
 empyrical-reloaded==0.5.12
+
+# 10월 1주차: PPO vs 벤치마크 Sharpe 차이 통계 검정 (walk_forward_statistical_tests.py)
+# arch.bootstrap.StationaryBootstrap으로 시계열 수익률의 block bootstrap CI 계산.
+arch==8.0.0
