@@ -2,7 +2,8 @@
   "_comment": "Fold 1 side_2023 validation 결과로 확정한 최종 후보. 2026-09-02, docs/walk_forward_design.md와 walk_forward_orchestrator.py의 fold1_final/fold2_final 실행 잠금(LOCKED_CANDIDATES_PATH)이 참조함. OOS(bull_2024, choppy_2025) 확인 전 동결 - 이후 재조정 금지.",
   "selection_rule": "정책망별로 고정된 3개 seed(42/43/44)의 거래비용 차감(net) validation Sharpe 산술평균이 최대인 후보를 선택한다. 소수점 셋째 자리까지 동률이면 (1) 최저 seed Sharpe가 높은 후보, 그래도 동률이면 (2) 평균 Calmar가 높은 후보, 그래도 동률이면 (3) 더 작은 구조/낮은 계산비용의 후보를 선택한다. 표준편차는 선택 점수에 포함하지 않고 불확실성으로 별도 보고한다.",
   "selection_rule_note": "후보/seed 조합 자체는 fold1_search 실행 전에 고정했으나, 이 selection_rule 문구는 validation 결과를 검토한 뒤 확정했다 - 따라서 '사전 정의된 기준'이 아니라 'validation 결과 검토 후 확정하고 OOS 확인 전 동결한 기준'으로 기록한다 (2026-09-02 리뷰 반영).",
-  "seeds_note": "2026-09-07: 마일스톤 문서의 '최소 5시드' 원칙에 맞춰 fold1_final/fold2_final(OOS 실행)의 seeds를 42/43/44에서 45,46을 추가해 5개로 확장했다. fold1_search(후보 선택 근거, validation_sharpe_* 필드)는 이 seeds 필드를 참조하지 않으므로 재실행하지 않았다 - 이미 3-seed로 확정한 candidate03/candidate04 선택 자체는 바뀌지 않는다. 순수하게 OOS 반복 횟수를 늘려 신뢰구간을 좁히는 확장이며 후보 재탐색이 아니다.",
+  "seeds_note": "2026-09-07: 마일스톤 문서의 '최소 5시드' 원칙에 맞춰 fold1_final/fold2_final(OOS 실행)의 seeds를 42/43/44에서 45,46을 추가해 5개로 확장했다. fold1_search(후보 선택 근거, validation_sharpe_* 필드)는 이 seeds 필드를 참조하지 않으므로 재실행하지 않았다 - 이미 3-seed로 확정한 candidate03/candidate04 선택 자체는 바뀌지 않는다. 후보나 하이퍼파라미터는 변경하지 않았고, 추가 seed(45,46)를 두 정책·두 fold에 동일하게 적용했으므로 모델 선택 누수나 cherry-picking은 없다.",
+  "seeds_note_protocol_status": "다만 최초 3-seed OOS는 2026-09-02에 완료됐고 '최소 5시드' 원칙은 2026-09-03 마일스톤 문서에 추가됐으며 실제 확장 실행은 2026-09-07에 이뤄졌다 - 시간 순서상 'OOS 결과를 본 뒤 seed 수를 바꾸지 않는다'는 원칙과 문자 그대로는 충돌한다 (2026-09-07 코덱스 3차 리뷰 지적). 따라서 이 확장은 사전에 계획된 프로토콜이 아니라 post-hoc robustness extension으로 명시한다: 논문 본문 표는 5-seed 전체 결과를 사용하되, 방법론/각주에는 '초기 프로토콜은 3-seed였으며, OOS 확인 후 후보를 변경하지 않은 채 2개 seed(45,46)를 두 정책·두 fold에 동일하게 일괄 추가한 post-hoc robustness extension'이라고 밝힌다. 원래 3-seed 결과는 results/frozen_summaries/에 별도 보존한다. 이 기록 이후로는 seed 추가·중단 기준을 다시 변경하지 않는다.",
   "cost_rate": 0.001,
   "mlp": {
     "candidate": "candidate03",
