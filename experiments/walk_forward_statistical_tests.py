@@ -6,23 +6,54 @@
 ----
 walk_forward_benchmarks.py의 비교표는 PPO(seed 5개 반복)의 mean Sharpe와
 벤치마크(결정론적, 반복 없음)의 point estimate를 나란히 놓은 "기술통계
-순위"일 뿐 가설검정이 아니다 (2026-09-07 코덱스 3차 리뷰). 엄밀한 통계
-추론이 필요하면 같은 시간 인덱스에서 PPO-벤치마크 수익률 차이를 block
-bootstrap으로 리샘플해 Sharpe 차이의 신뢰구간을 구해야 한다.
+순위"일 뿐 가설검정이 아니다 (2026-09-07 코덱스 3차 리뷰). 이 스크립트는
+그 통계적 엄밀성을 확보하려는 시도다.
 
-방법론
-------
-- arch.bootstrap.StationaryBootstrap으로 net_returns 차이 시계열을 리샘플
-  (block_size=24 - 1시간봉 데이터의 하루 주기성을 고려한 블록 길이).
-- PPO vs 벤치마크: 각 PPO seed의 returns에서 벤치마크 returns를 뺀 차이
-  시계열의 Sharpe를 통계량으로 잡아 95% CI 계산. CI가 0을 포함하면
-  "이 두 국면에서는 통계적으로 구분되지 않는다"로 해석.
-- MLP vs Transformer: paired seed(같은 seed 인덱스끼리)의 수익률 차이로
-  동일하게 계산.
-- 비교가 여러 개(정책 2 x 벤치마크 4 x fold 2 = 16개)이므로 Holm-Bonferroni
-  보정을 적용해 p-value 부풀림을 막는다.
+첫 구현의 결함과 수정 (2026-09-07 코덱스 4차 리뷰)
+----------------------------------------------------------
+최초 구현은 아래 네 가지가 틀렸었다:
+
+1. 통계량 자체가 틀림: Sharpe(PPO) - Sharpe(benchmark)를 계산해야 하는데
+   Sharpe(PPO returns - benchmark returns)를 계산했다. 이 둘은 Sharpe가
+   비선형(평균/표준편차 비율) 통계량이라 전혀 다른 값이다. 실측: MLP-EW
+   Fold1의 실제 Sharpe 차이는 +0.005인데 잘못된 계산은 -2.447을 냈다.
+2. 벤치마크는 gross returns, PPO는 net(비용 차감) returns를 섞어 썼다 -
+   비교 조건 자체가 안 맞았다.
+3. seed별로 각각 구한 CI의 하한/상한을 단순 평균했는데, 이건 통계적으로
+   의미 있는 "전체 평균 효과의 CI"가 아니다.
+4. p-value proxy가 CI가 0을 배제하는 모든 경우에 상수 0.01을 반환했다.
+   Holm 첫 임계값(0.05/16=0.003125)보다 항상 크므로, 코드 구조상
+   "16개 전부 Holm 보정 후 비유의"가 나올 수밖에 없었다 - 실제 검정이
+   아니라 검정을 흉내 낸 것이었다.
+
+수정된 방법론
+----------------
+- 벤치마크도 evaluate.py와 동일한 정의(turnover*cost_rate 차감)의 net
+  returns를 사용해 PPO와 조건을 맞춘다.
+- 통계량을 Sharpe(PPO) - Sharpe(benchmark)로 정확히 정의하고,
+  arch.bootstrap.StationaryBootstrap에 PPO/벤치마크 returns를 함께
+  (페어링된 인덱스로) 넣어 매 리샘플마다 두 시계열을 동시에 블록
+  리샘플한 뒤 그 통계량을 계산한다 (.apply()로 원시 리샘플 분포를 얻음 -
+  이래야 실제 bootstrap 분포에서 percentile CI와 p-value를 낼 수 있다).
+- seed 불확실성과 시계열(bootstrap) 불확실성을 pooled bootstrap으로
+  결합한다: 각 seed마다 독립적으로 시계열 bootstrap 분포(reps개)를 만든
+  뒤, 5개 seed의 분포를 전부 이어붙여 하나의 결합 분포로 취급한다 -
+  nested bootstrap(외부 seed 리샘플 + 내부 시계열 리샘플)보다 구현이
+  간단하고, seed=5로는 외부 맨의 분산 추정 자체가 불안정하다는 문제도
+  피한다.
+- 실제 bootstrap p-value: 결합 분포가 0을 기준으로 얼마나 치우쳐
+  있는지로 계산하는 양측검정 (2*min(P(dist<=0), P(dist>=0))).
+- 비교가 여러 개(정책 2 x 벤치마크 4 x fold 2 = 16개)이므로
+  Holm-Bonferroni 보정을 적용한다.
+- block size는 24(하루 주기성)와 168(주 단위 주기성)을 모두 계산해
+  민감도를 확인한다 - 결과가 크게 달라지면 결론에 그 사실을 명시해야
+  한다.
 - OOS 국면이 bull_2024/choppy_2025 2개뿐이므로 "모든 시장 국면에
   일반화된다"는 주장은 하지 않는다 - 이 두 국면 한정 결론이다.
+- 결과 해석 문구: 유의하지 않다고 "PPO와 벤치마크가 통계적으로 동등하다"
+  고 쓰면 안 된다 (비유의는 동등성의 증거가 아니다 - equivalence test가
+  아닌 한). 정확한 문구는 "이 두 OOS 국면에서 PPO와 전통 벤치마크 간
+  Sharpe 차이가 0과 다르다는 통계적 증거를 얻지 못했다"이다.
 
 주의
 ----
@@ -32,8 +63,9 @@ bootstrap으로 리샘플해 Sharpe 차이의 신뢰구간을 구해야 한다.
 
 출력
 ----
-results/walk_forward_statistical_tests/bootstrap_ci.json
-콘솔에 정책×벤치마크×fold별 CI와 Holm 보정 후 유의성 여부 출력.
+results/walk_forward_statistical_tests/statistical_tests.json
+콘솔에 정책×벤치마크×fold별 point estimate, CI, bootstrap p-value,
+Holm 보정 후 유의성, block size 민감도를 출력.
 """
 
 from __future__ import annotations
@@ -45,6 +77,7 @@ import os
 import numpy as np
 import pandas as pd
 from arch.bootstrap import StationaryBootstrap
+from scipy import stats
 
 RESULTS_ROOT = "results/walk_forward"
 BENCHMARKS_ROOT = "results/walk_forward_benchmarks"
@@ -58,7 +91,8 @@ FOLDS = [
 
 BENCHMARK_STRATEGIES = ["buy_and_hold_btc", "equal_weight", "markowitz", "risk_parity"]
 
-BLOCK_SIZE = 24  # 1시간봉 데이터의 하루 주기성을 고려
+BLOCK_SIZES = [24, 168]  # 하루/주 단위 주기성 - 민감도 확인용
+PRIMARY_BLOCK_SIZE = 24
 N_BOOTSTRAP_REPS = 2000
 PERIODS_PER_YEAR = 24 * 365
 CI_LEVEL = 0.95
@@ -69,13 +103,12 @@ def load_locked_candidates() -> dict:
         return json.load(f)
 
 
-def load_returns(path: str) -> pd.Series:
-    df = pd.read_csv(path, index_col="date", parse_dates=True)
-    return df["returns"]
-
-
 def load_net_returns(path: str, cost_rate: float) -> pd.Series:
-    """evaluate.py와 동일하게 turnover 비용을 차감한 net returns."""
+    """evaluate.py와 동일하게 turnover 비용을 차감한 net returns.
+
+    PPO와 벤치마크 모두 이 함수로 net returns를 계산해서 비교 조건을
+    맞춘다 (최초 구현은 벤치마크에 gross returns를 그대로 썼음 - Major #2).
+    """
     df = pd.read_csv(path, index_col="date", parse_dates=True)
     df["weights"] = df["weights"].apply(ast.literal_eval)
     df["target_weights"] = df["target_weights"].apply(ast.literal_eval)
@@ -90,108 +123,136 @@ def load_net_returns(path: str, cost_rate: float) -> pd.Series:
     return net
 
 
-def sharpe_of_diff(diff_returns: np.ndarray) -> float:
-    std = diff_returns.std()
+def sharpe(returns: np.ndarray) -> float:
+    std = returns.std()
     if std == 0 or not np.isfinite(std):
         return 0.0
-    return float(diff_returns.mean() / std * np.sqrt(PERIODS_PER_YEAR))
+    return float(returns.mean() / std * np.sqrt(PERIODS_PER_YEAR))
 
 
-def bootstrap_sharpe_ci(diff_returns: pd.Series, seed: int = 0) -> tuple[float, float, float]:
-    """diff_returns(PPO net returns - 상대방 returns) 시계열의 Sharpe 통계량에 대한
-    stationary block bootstrap 95% CI. 반환: (point_estimate, ci_low, ci_high)."""
-    values = diff_returns.dropna().to_numpy()
-    point = sharpe_of_diff(values)
-    bs = StationaryBootstrap(BLOCK_SIZE, values, seed=seed)
-    ci = bs.conf_int(sharpe_of_diff, reps=N_BOOTSTRAP_REPS, method="percentile", size=CI_LEVEL)
-    return point, float(ci[0, 0]), float(ci[1, 0])
+def sharpe_diff_statistic(ppo_returns: np.ndarray, bench_returns: np.ndarray) -> float:
+    """통계량: Sharpe(PPO) - Sharpe(benchmark) - Sharpe(PPO-benchmark)가 아니다.
+
+    Sharpe는 평균/표준편차 비율이라 비선형 통계량이므로, 두 시계열 각각의
+    Sharpe를 구한 뒤 빼는 것과 차이 시계열의 Sharpe를 구하는 것은 전혀
+    다른 값이다 (2026-09-07 코덱스 4차 리뷰 - Major #1, 실측: MLP-EW
+    Fold1 실제 차이 +0.005 vs 잘못된 계산 -2.447).
+    """
+    return sharpe(ppo_returns) - sharpe(bench_returns)
 
 
-def holm_bonferroni(p_values: list[float]) -> list[bool]:
-    """Holm-Bonferroni 보정. 반환: 각 비교가 alpha=0.05에서 유의한지 여부(원래 순서 유지)."""
-    alpha = 0.05
+def one_seed_bootstrap_distribution(
+    ppo_returns: pd.Series, bench_returns: pd.Series, block_size: int, seed: int
+) -> np.ndarray:
+    """한 PPO seed에 대해, 페어링된 (PPO, benchmark) returns를 함께 block
+    bootstrap 리샘플해서 Sharpe 차이 통계량의 리샘플 분포(reps개)를 반환.
+
+    StationaryBootstrap에 두 시계열을 함께 넣으면 매 리샘플마다 동일한
+    블록 인덱스로 두 시계열을 같이 뽑는다 - 그래야 같은 시점의 시장
+    충격 상관관계가 리샘플 후에도 보존된다 (따로따로 리샘플하면 이
+    상관관계가 깨져서 분산이 부풀려짐).
+    """
+    common_idx = ppo_returns.index.intersection(bench_returns.index)
+    ppo_arr = ppo_returns.loc[common_idx].to_numpy()
+    bench_arr = bench_returns.loc[common_idx].to_numpy()
+
+    bs = StationaryBootstrap(block_size, ppo_arr, bench_arr, seed=seed)
+    dist = bs.apply(sharpe_diff_statistic, reps=N_BOOTSTRAP_REPS)
+    return dist.flatten()
+
+
+def pooled_ci_and_pvalue(pooled_dist: np.ndarray, point_estimate: float) -> dict:
+    ci_low, ci_high = np.percentile(pooled_dist, [(1 - CI_LEVEL) / 2 * 100, (1 + CI_LEVEL) / 2 * 100])
+    p_below = float((pooled_dist <= 0).mean())
+    p_above = float((pooled_dist >= 0).mean())
+    p_value = float(min(1.0, 2 * min(p_below, p_above)))
+    return {
+        "point_estimate": float(point_estimate),
+        "ci_low": float(ci_low),
+        "ci_high": float(ci_high),
+        "bootstrap_p_value": p_value,
+    }
+
+
+def holm_bonferroni(p_values: list[float], alpha: float = 0.05) -> list[bool]:
+    """Holm-Bonferroni 보정. 반환: 각 비교가 alpha에서 유의한지 여부(원래 순서 유지)."""
     order = np.argsort(p_values)
     m = len(p_values)
     reject = [False] * m
     for rank, idx in enumerate(order):
         threshold = alpha / (m - rank)
         if p_values[idx] < threshold:
-            reject[idx] = True
+            reject[int(idx)] = True
         else:
             break  # Holm: 한 번 기각 실패하면 이후(더 큰 p-value)는 전부 채택
     return reject
 
 
-def ci_excludes_zero_as_pvalue_proxy(ci_low: float, ci_high: float) -> float:
-    """CI가 0을 포함하는지를 이용한 근사 p-value (0이면 유의, 1이면 완전히 겹침).
-    정확한 bootstrap p-value 대신 Holm 보정 순위 매기기 용도의 근사치."""
-    if ci_low > 0 or ci_high < 0:
-        return 0.01  # 유의: CI가 0을 완전히 배제
-    span = ci_high - ci_low
-    if span == 0:
-        return 1.0
-    dist_to_zero = min(abs(ci_low), abs(ci_high))
-    return float(min(1.0, dist_to_zero / (span / 2) + 0.5))
-
-
-def main() -> None:
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    locked = load_locked_candidates()
-
-    ppo_vs_benchmark_results = []
-    for policy_key, candidate_field in [("mlp", "candidate03"), ("transformer", "candidate04")]:
+def compute_ppo_vs_benchmark(locked: dict) -> list[dict]:
+    results = []
+    for policy_key in ("mlp", "transformer"):
         candidate = locked[policy_key]["candidate"]
         seeds = locked[policy_key]["seeds"]
         cost_rate = locked.get("cost_rate", 0.001)
 
         for fold, benchmark_fold, fold_label in FOLDS:
+            # seed별 PPO net returns는 이 fold 안에서 벤치마크 4종 전부에 재사용 - 한 번만 로드
+            seed_ppo_returns = {
+                seed: load_net_returns(
+                    os.path.join(RESULTS_ROOT, policy_key, fold, candidate, f"seed{seed}", "backtest_oos.csv"), cost_rate
+                )
+                for seed in seeds
+            }
+
             for bench_strategy in BENCHMARK_STRATEGIES:
                 bench_path = os.path.join(BENCHMARKS_ROOT, benchmark_fold, f"{bench_strategy}.csv")
-                bench_returns = load_returns(bench_path)
+                bench_net_returns = load_net_returns(bench_path, cost_rate)
 
-                seed_cis = []
+                # point estimate: block size와 무관, seed별 Sharpe(PPO)-Sharpe(bench)의 평균
+                point_estimates = []
                 for seed in seeds:
-                    ppo_path = os.path.join(RESULTS_ROOT, policy_key, fold, candidate, f"seed{seed}", "backtest_oos.csv")
-                    ppo_net_returns = load_net_returns(ppo_path, cost_rate)
+                    ppo_net_returns = seed_ppo_returns[seed]
+                    common_idx = ppo_net_returns.index.intersection(bench_net_returns.index)
+                    point_estimates.append(sharpe_diff_statistic(
+                        ppo_net_returns.loc[common_idx].to_numpy(),
+                        bench_net_returns.loc[common_idx].to_numpy(),
+                    ))
+                mean_point = float(np.mean(point_estimates))
 
-                    common_idx = ppo_net_returns.index.intersection(bench_returns.index)
-                    diff = ppo_net_returns.loc[common_idx] - bench_returns.loc[common_idx]
-                    point, lo, hi = bootstrap_sharpe_ci(diff, seed=seed)
-                    seed_cis.append({"seed": seed, "point": point, "ci_low": lo, "ci_high": hi})
+                block_size_results = {}
+                for block_size in BLOCK_SIZES:
+                    pooled = [
+                        one_seed_bootstrap_distribution(seed_ppo_returns[seed], bench_net_returns, block_size, seed)
+                        for seed in seeds
+                    ]
+                    pooled_dist = np.concatenate(pooled)
+                    block_size_results[block_size] = pooled_ci_and_pvalue(pooled_dist, mean_point)
 
-                mean_point = float(np.mean([s["point"] for s in seed_cis]))
-                mean_lo = float(np.mean([s["ci_low"] for s in seed_cis]))
-                mean_hi = float(np.mean([s["ci_high"] for s in seed_cis]))
-
-                ppo_vs_benchmark_results.append({
+                primary = block_size_results[PRIMARY_BLOCK_SIZE]
+                results.append({
                     "policy": policy_key,
                     "fold": fold,
                     "fold_label": fold_label,
                     "benchmark": bench_strategy,
-                    "sharpe_diff_mean": mean_point,
-                    "sharpe_diff_ci_low": mean_lo,
-                    "sharpe_diff_ci_high": mean_hi,
-                    "excludes_zero": mean_lo > 0 or mean_hi < 0,
-                    "per_seed": seed_cis,
+                    **primary,
+                    "block_size_sensitivity": {str(bs): block_size_results[bs] for bs in BLOCK_SIZES},
                 })
 
-    p_proxies = [ci_excludes_zero_as_pvalue_proxy(r["sharpe_diff_ci_low"], r["sharpe_diff_ci_high"]) for r in ppo_vs_benchmark_results]
-    significant = holm_bonferroni(p_proxies)
-    for r, sig in zip(ppo_vs_benchmark_results, significant):
-        r["significant_after_holm"] = bool(sig)
+    return results
 
-    print("=== PPO vs 벤치마크: Sharpe 차이 95% block bootstrap CI (Holm 보정 후 유의성) ===")
-    for r in ppo_vs_benchmark_results:
-        sig_mark = "유의함" if r["significant_after_holm"] else "유의하지 않음"
-        print(f"  {r['policy']:12s} vs {r['benchmark']:18s} [{r['fold_label']}]: "
-              f"diff={r['sharpe_diff_mean']:+.3f}  CI=[{r['sharpe_diff_ci_low']:+.3f}, {r['sharpe_diff_ci_high']:+.3f}]  -> {sig_mark}")
 
-    # MLP vs Transformer paired seed 차이 (2026-09-07 코덱스 리뷰에서 이미 제시된 값 재현+검증)
+def compute_mlp_vs_transformer(locked: dict) -> list[dict]:
+    """MLP vs Transformer paired seed Sharpe 차이. n=5 seed 변동성 한정 결과.
+
+    이 비교는 2026-09-07 코덱스 3차 리뷰에서 이미 올바르게 계산되어
+    (Sharpe끼리 직접 뺀 값), 그대로 재사용한다 - PPO-벤치마크 비교와 달리
+    "차이 시계열의 Sharpe"를 계산하는 오류가 없었다.
+    """
     mlp_seeds = locked["mlp"]["seeds"]
     tf_seeds = locked["transformer"]["seeds"]
     assert mlp_seeds == tf_seeds, "MLP/Transformer seed 목록이 달라 paired 비교 불가"
 
-    mlp_vs_tf_results = []
+    results = []
     for fold, _, fold_label in FOLDS:
         sharpe_diffs = []
         for seed in mlp_seeds:
@@ -206,24 +267,57 @@ def main() -> None:
         sharpe_diffs = np.array(sharpe_diffs)
         mean_diff = float(sharpe_diffs.mean())
         se = float(sharpe_diffs.std(ddof=1) / np.sqrt(len(sharpe_diffs)))
-        # n=5라 t분포(df=4) 사용 - 코덱스가 제시한 값과 동일 방법
-        from scipy import stats
         t_crit = float(stats.t.ppf(0.975, df=len(sharpe_diffs) - 1))
         ci_low = float(mean_diff - t_crit * se)
         ci_high = float(mean_diff + t_crit * se)
 
-        mlp_vs_tf_results.append({
+        results.append({
             "fold": fold, "fold_label": fold_label,
+            "n_seeds": len(sharpe_diffs),
             "transformer_minus_mlp_mean": mean_diff,
             "ci_low": ci_low, "ci_high": ci_high,
             "within_uncertainty": bool(ci_low < 0 < ci_high),
+            "note": "n=5 seed 변동성 한정 결과 - seed 수를 늘리면 CI가 달라질 수 있음",
         })
 
-    print("\n=== MLP vs Transformer: paired seed Sharpe 차이 (Transformer - MLP), 95% t-CI ===")
+    return results
+
+
+def print_ppo_vs_benchmark(results: list[dict], significant: list[bool]) -> None:
+    print(f"=== PPO vs 벤치마크: Sharpe(PPO)-Sharpe(benchmark), pooled bootstrap (block={PRIMARY_BLOCK_SIZE}) ===")
+    for r, sig in zip(results, significant):
+        sig_mark = "유의함" if sig else "유의하지 않음"
+        bs168 = r["block_size_sensitivity"]["168"]
+        print(f"  {r['policy']:12s} vs {r['benchmark']:18s} [{r['fold_label']}]: "
+              f"diff={r['point_estimate']:+.4f}  CI=[{r['ci_low']:+.4f}, {r['ci_high']:+.4f}]  "
+              f"p={r['bootstrap_p_value']:.4f}  -> {sig_mark}  "
+              f"(block=168 CI=[{bs168['ci_low']:+.4f}, {bs168['ci_high']:+.4f}])")
+
+
+def main() -> None:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    locked = load_locked_candidates()
+
+    ppo_vs_benchmark_results = compute_ppo_vs_benchmark(locked)
+    p_values = [r["bootstrap_p_value"] for r in ppo_vs_benchmark_results]
+    significant = holm_bonferroni(p_values)
+    for r, sig in zip(ppo_vs_benchmark_results, significant):
+        r["significant_after_holm"] = bool(sig)
+
+    print_ppo_vs_benchmark(ppo_vs_benchmark_results, significant)
+
+    mlp_vs_tf_results = compute_mlp_vs_transformer(locked)
+    print("\n=== MLP vs Transformer: paired seed Sharpe 차이 (Transformer - MLP), 95% t-CI, n=5 한정 ===")
     for r in mlp_vs_tf_results:
         status = "불확실성 안 (구분 어려움)" if r["within_uncertainty"] else "0을 배제 (구분 가능)"
         print(f"  {r['fold_label']}: diff={r['transformer_minus_mlp_mean']:+.4f}  "
               f"CI=[{r['ci_low']:+.4f}, {r['ci_high']:+.4f}]  -> {status}")
+
+    n_significant = sum(significant)
+    print(f"\n결론: 16개 비교 중 {n_significant}개가 Holm 보정 후 유의함.")
+    print("주의: 유의하지 않다고 해서 '통계적으로 동등하다'를 의미하지 않는다 (equivalence test가 아님).")
+    print("정확한 문구: '이 두 OOS 국면에서 PPO와 전통 벤치마크 간 Sharpe 차이가")
+    print("0과 다르다는 통계적 증거를 얻지 못했다.'")
 
     output_path = os.path.join(OUTPUT_DIR, "statistical_tests.json")
     with open(output_path, "w") as f:
@@ -231,10 +325,18 @@ def main() -> None:
             "ppo_vs_benchmark": ppo_vs_benchmark_results,
             "mlp_vs_transformer": mlp_vs_tf_results,
             "config": {
-                "block_size": BLOCK_SIZE,
+                "primary_block_size": PRIMARY_BLOCK_SIZE,
+                "block_size_sensitivity_checked": BLOCK_SIZES,
                 "n_bootstrap_reps": N_BOOTSTRAP_REPS,
                 "ci_level": CI_LEVEL,
-                "note": "OOS 국면(bull_2024, choppy_2025) 2개 한정 결론. 모든 시장 국면 일반화 주장 아님.",
+                "n_comparisons_holm": len(ppo_vs_benchmark_results),
+                "pooling_method": "각 seed의 독립 bootstrap 리샘플 분포(reps개)를 이어붙인 pooled distribution",
+                "interpretation_note": (
+                    "유의하지 않음은 동등성의 증거가 아니다. 정확한 해석: "
+                    "이 두 OOS 국면에서 PPO와 전통 벤치마크 간 Sharpe 차이가 "
+                    "0과 다르다는 통계적 증거를 얻지 못했다."
+                ),
+                "generalization_note": "OOS 국면(bull_2024, choppy_2025) 2개 한정 결론. 모든 시장 국면 일반화 주장 아님.",
             },
         }, f, indent=2, ensure_ascii=False)
     print(f"\n결과 저장: {output_path}")
