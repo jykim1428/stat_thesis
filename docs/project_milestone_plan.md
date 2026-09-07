@@ -140,7 +140,9 @@
 
 > **✅ 9월 게이트:** MLP·LSTM·Transformer 세 정책망 모두 붕괴 없이 end-to-end 작동
 >
-> **실제 진행 메모 (2026-09):** LSTM은 팀 합의로 연구 범위 밖으로 확정(코덱스 검토 동의) — MLP/Transformer만 walk-forward 대상. 9월 4주차 오케스트레이터(`experiments/walk_forward_orchestrator.py`)로 Fold1 탐색(N=4 후보×S=3 seed, 24회) → 후보 확정(`configs/walk_forward_locked_candidates.json`) → Fold1/Fold2 최종 재학습+OOS(각 6회) 완료. 전통 벤치마크 4종도 동일 OOS 날짜로 재실행 비교 완료(`experiments/walk_forward_benchmarks.py`). **결과: PPO(MLP/Transformer) 모두 두 OOS 구간에서 전통 벤치마크 대비 일관된 우위를 입증하지 못함** — 행동 진단(비중 HHI, 현금-낙폭 상관계수)상 두 정책 모두 균등분산에 가깝게 수렴, 하락 국면 방어 행동 학습 안 됨. 이 결과를 뒤집으려는 재탐색은 하지 않기로 함(OOS 확인 후 재조정 금지 원칙).
+> **실제 진행 메모 (2026-09):** LSTM은 팀 합의로 연구 범위 밖으로 확정(코덱스 검토 동의) — MLP/Transformer만 walk-forward 대상. 9월 4주차 오케스트레이터(`experiments/walk_forward_orchestrator.py`)로 Fold1 탐색(N=4 후보×S=3 seed, 24회) → 후보 확정(`configs/walk_forward_locked_candidates.json`) → Fold1/Fold2 최종 재학습+OOS 완료. 전통 벤치마크 4종도 동일 OOS 날짜로 재실행 비교 완료(`experiments/walk_forward_benchmarks.py`). 정책 행동 진단 스크립트(`experiments/walk_forward_behavior_diagnostics.py`)도 추가. **결과: PPO(MLP/Transformer) 모두 두 OOS 구간에서 전통 벤치마크 대비 일관된 우위를 입증하지 못함** — 행동 진단(비중 HHI, 현금-낙폭 상관계수)상 두 정책 모두 균등분산에 가깝게 수렴, 하락 국면 방어 행동 학습 안 됨. 이 결과를 뒤집으려는 재탐색은 하지 않기로 함(OOS 확인 후 재조정 금지 원칙).
+>
+> **5-seed 확장 (2026-09-07):** 운영 원칙의 "최소 5시드"에 맞춰 Fold1_final/Fold2_final의 OOS 재학습을 seed 3개(42~44)에서 5개(42~46)로 확장(`locked_candidates.json` 갱신, resume으로 기존 3개는 skip하고 45·46만 신규 실행). Fold1_search(후보 선택 근거)는 3-seed 그대로 유지 — 이미 확정한 candidate03(MLP)/candidate04(Transformer) 선택 자체는 바뀌지 않음. 5-seed 결과도 3-seed와 동일한 결론(Fold1 두 정책 동률, Fold2 둘 다 손실이고 MLP가 근소하게 덜 나쁨, 벤치마크 대비 일관된 우위 없음)을 유지.
 
 ---
 
