@@ -6,21 +6,21 @@
       "fold_label": "bull_2024",
       "benchmark": "buy_and_hold_btc",
       "point_estimate": -0.06898090246858848,
-      "ci_low": -1.0342722160226765,
-      "ci_high": 0.8953284755565588,
-      "bootstrap_p_value": 0.863,
+      "ci_low": -1.0168840403478918,
+      "ci_high": 0.9010226967941646,
+      "bootstrap_p_value": 0.872,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.06898090246858848,
-          "ci_low": -1.0342722160226765,
-          "ci_high": 0.8953284755565588,
-          "bootstrap_p_value": 0.863
+          "ci_low": -1.0168840403478918,
+          "ci_high": 0.9010226967941646,
+          "bootstrap_p_value": 0.872
         },
         "168": {
           "point_estimate": -0.06898090246858848,
-          "ci_low": -0.9791199904170645,
-          "ci_high": 0.8498212534155964,
-          "bootstrap_p_value": 0.882
+          "ci_low": -0.9325572865438473,
+          "ci_high": 0.831845913996502,
+          "bootstrap_p_value": 0.921
         }
       },
       "significant_after_holm": false
@@ -31,21 +31,21 @@
       "fold_label": "bull_2024",
       "benchmark": "equal_weight",
       "point_estimate": -0.01524903917926892,
-      "ci_low": -0.03658709101077311,
-      "ci_high": 0.006143852689924479,
-      "bootstrap_p_value": 0.174,
+      "ci_low": -0.037455997521082536,
+      "ci_high": 0.005461591384258713,
+      "bootstrap_p_value": 0.168,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.01524903917926892,
-          "ci_low": -0.03658709101077311,
-          "ci_high": 0.006143852689924479,
-          "bootstrap_p_value": 0.174
+          "ci_low": -0.037455997521082536,
+          "ci_high": 0.005461591384258713,
+          "bootstrap_p_value": 0.168
         },
         "168": {
           "point_estimate": -0.01524903917926892,
-          "ci_low": -0.03706185400892087,
-          "ci_high": 0.004821021481236354,
-          "bootstrap_p_value": 0.139
+          "ci_low": -0.036601314568901144,
+          "ci_high": 0.005376658170432294,
+          "bootstrap_p_value": 0.148
         }
       },
       "significant_after_holm": false
@@ -56,21 +56,21 @@
       "fold_label": "bull_2024",
       "benchmark": "markowitz",
       "point_estimate": 0.3854339517009192,
-      "ci_low": -0.2602366815258642,
-      "ci_high": 1.0528321600868873,
-      "bootstrap_p_value": 0.256,
+      "ci_low": -0.2929040169551134,
+      "ci_high": 1.049688417341129,
+      "bootstrap_p_value": 0.273,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": 0.3854339517009192,
-          "ci_low": -0.2602366815258642,
-          "ci_high": 1.0528321600868873,
-          "bootstrap_p_value": 0.256
+          "ci_low": -0.2929040169551134,
+          "ci_high": 1.049688417341129,
+          "bootstrap_p_value": 0.273
         },
         "168": {
           "point_estimate": 0.3854339517009192,
-          "ci_low": -0.2682046295287698,
-          "ci_high": 1.061171456766023,
-          "bootstrap_p_value": 0.255
+          "ci_low": -0.3017393535559781,
+          "ci_high": 1.046653406755595,
+          "bootstrap_p_value": 0.246
         }
       },
       "significant_after_holm": false
@@ -81,21 +81,21 @@
       "fold_label": "bull_2024",
       "benchmark": "risk_parity",
       "point_estimate": 0.062329053707304995,
-      "ci_low": -0.10524298079037911,
-      "ci_high": 0.23175340214950696,
-      "bootstrap_p_value": 0.516,
+      "ci_low": -0.11839213558848952,
+      "ci_high": 0.2417261272530347,
+      "bootstrap_p_value": 0.482,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": 0.062329053707304995,
-          "ci_low": -0.10524298079037911,
-          "ci_high": 0.23175340214950696,
-          "bootstrap_p_value": 0.516
+          "ci_low": -0.11839213558848952,
+          "ci_high": 0.2417261272530347,
+          "bootstrap_p_value": 0.482
         },
         "168": {
           "point_estimate": 0.062329053707304995,
-          "ci_low": -0.11451517809423978,
-          "ci_high": 0.23444738453241465,
-          "bootstrap_p_value": 0.51
+          "ci_low": -0.1135831797356473,
+          "ci_high": 0.2425688226680151,
+          "bootstrap_p_value": 0.557
         }
       },
       "significant_after_holm": false
@@ -106,21 +106,21 @@
       "fold_label": "choppy_2025",
       "benchmark": "buy_and_hold_btc",
       "point_estimate": -0.2599287976726787,
-      "ci_low": -1.1237385822176162,
-      "ci_high": 0.6736832478460948,
-      "bootstrap_p_value": 0.627,
+      "ci_low": -1.1246541354407458,
+      "ci_high": 0.6322603299933136,
+      "bootstrap_p_value": 0.555,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.2599287976726787,
-          "ci_low": -1.1237385822176162,
-          "ci_high": 0.6736832478460948,
-          "bootstrap_p_value": 0.627
+          "ci_low": -1.1246541354407458,
+          "ci_high": 0.6322603299933136,
+          "bootstrap_p_value": 0.555
         },
         "168": {
           "point_estimate": -0.2599287976726787,
-          "ci_low": -1.0646904622874125,
-          "ci_high": 0.6304035485609298,
-          "bootstrap_p_value": 0.53
+          "ci_low": -1.1211175373641111,
+          "ci_high": 0.6408022697301856,
+          "bootstrap_p_value": 0.538
         }
       },
       "significant_after_holm": false
@@ -131,21 +131,21 @@
       "fold_label": "choppy_2025",
       "benchmark": "equal_weight",
       "point_estimate": 0.018612328671263494,
-      "ci_low": -0.014934922115544608,
-      "ci_high": 0.05487253987523795,
-      "bootstrap_p_value": 0.309,
+      "ci_low": -0.019208551459323726,
+      "ci_high": 0.05401475159327979,
+      "bootstrap_p_value": 0.291,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": 0.018612328671263494,
-          "ci_low": -0.014934922115544608,
-          "ci_high": 0.05487253987523795,
-          "bootstrap_p_value": 0.309
+          "ci_low": -0.019208551459323726,
+          "ci_high": 0.05401475159327979,
+          "bootstrap_p_value": 0.291
         },
         "168": {
           "point_estimate": 0.018612328671263494,
-          "ci_low": -0.013671012626272672,
-          "ci_high": 0.054643790015410316,
-          "bootstrap_p_value": 0.268
+          "ci_low": -0.016053360715949497,
+          "ci_high": 0.05754856925705919,
+          "bootstrap_p_value": 0.305
         }
       },
       "significant_after_holm": false
@@ -156,21 +156,21 @@
       "fold_label": "choppy_2025",
       "benchmark": "markowitz",
       "point_estimate": -0.36496284205100366,
-      "ci_low": -0.867730755562392,
-      "ci_high": 0.13980726470001897,
-      "bootstrap_p_value": 0.138,
+      "ci_low": -0.8539225050489493,
+      "ci_high": 0.1640178215200455,
+      "bootstrap_p_value": 0.164,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.36496284205100366,
-          "ci_low": -0.867730755562392,
-          "ci_high": 0.13980726470001897,
-          "bootstrap_p_value": 0.138
+          "ci_low": -0.8539225050489493,
+          "ci_high": 0.1640178215200455,
+          "bootstrap_p_value": 0.164
         },
         "168": {
           "point_estimate": -0.36496284205100366,
-          "ci_low": -0.8741078442571697,
-          "ci_high": 0.09931500688603818,
-          "bootstrap_p_value": 0.124
+          "ci_low": -0.870397638285479,
+          "ci_high": 0.1034564184424023,
+          "bootstrap_p_value": 0.122
         }
       },
       "significant_after_holm": false
@@ -181,21 +181,21 @@
       "fold_label": "choppy_2025",
       "benchmark": "risk_parity",
       "point_estimate": -0.02188239807604004,
-      "ci_low": -0.13567403050914867,
-      "ci_high": 0.09291847941229456,
-      "bootstrap_p_value": 0.703,
+      "ci_low": -0.1381845199823128,
+      "ci_high": 0.08509561469385332,
+      "bootstrap_p_value": 0.681,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.02188239807604004,
-          "ci_low": -0.13567403050914867,
-          "ci_high": 0.09291847941229456,
-          "bootstrap_p_value": 0.703
+          "ci_low": -0.1381845199823128,
+          "ci_high": 0.08509561469385332,
+          "bootstrap_p_value": 0.681
         },
         "168": {
           "point_estimate": -0.02188239807604004,
-          "ci_low": -0.13257681632199553,
-          "ci_high": 0.08587415268613202,
-          "bootstrap_p_value": 0.681
+          "ci_low": -0.13449794481142133,
+          "ci_high": 0.08139667195687514,
+          "bootstrap_p_value": 0.652
         }
       },
       "significant_after_holm": false
@@ -206,21 +206,21 @@
       "fold_label": "bull_2024",
       "benchmark": "buy_and_hold_btc",
       "point_estimate": -0.06598849711178607,
-      "ci_low": -1.0181120795566951,
-      "ci_high": 0.9125809987093364,
-      "bootstrap_p_value": 0.842,
+      "ci_low": -1.0117513385542214,
+      "ci_high": 0.8985716969389193,
+      "bootstrap_p_value": 0.895,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.06598849711178607,
-          "ci_low": -1.0181120795566951,
-          "ci_high": 0.9125809987093364,
-          "bootstrap_p_value": 0.842
+          "ci_low": -1.0117513385542214,
+          "ci_high": 0.8985716969389193,
+          "bootstrap_p_value": 0.895
         },
         "168": {
           "point_estimate": -0.06598849711178607,
-          "ci_low": -0.9824252939122677,
-          "ci_high": 0.8640987932942782,
-          "bootstrap_p_value": 0.891
+          "ci_low": -0.9843991009469818,
+          "ci_high": 0.8817413436377355,
+          "bootstrap_p_value": 0.874
         }
       },
       "significant_after_holm": false
@@ -231,21 +231,21 @@
       "fold_label": "bull_2024",
       "benchmark": "equal_weight",
       "point_estimate": -0.012256633822466511,
-      "ci_low": -0.06962826569518919,
-      "ci_high": 0.05047933603298264,
-      "bootstrap_p_value": 0.689,
+      "ci_low": -0.07353867020825036,
+      "ci_high": 0.047935716980520765,
+      "bootstrap_p_value": 0.676,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.012256633822466511,
-          "ci_low": -0.06962826569518919,
-          "ci_high": 0.05047933603298264,
-          "bootstrap_p_value": 0.689
+          "ci_low": -0.07353867020825036,
+          "ci_high": 0.047935716980520765,
+          "bootstrap_p_value": 0.676
         },
         "168": {
           "point_estimate": -0.012256633822466511,
-          "ci_low": -0.0681803462481032,
-          "ci_high": 0.04720637986473906,
-          "bootstrap_p_value": 0.687
+          "ci_low": -0.06761355887448574,
+          "ci_high": 0.048826728108059346,
+          "bootstrap_p_value": 0.682
         }
       },
       "significant_after_holm": false
@@ -256,21 +256,21 @@
       "fold_label": "bull_2024",
       "benchmark": "markowitz",
       "point_estimate": 0.3884263570577216,
-      "ci_low": -0.27682989168760463,
-      "ci_high": 1.061057904706228,
-      "bootstrap_p_value": 0.253,
+      "ci_low": -0.35164026089154327,
+      "ci_high": 1.0568347868170231,
+      "bootstrap_p_value": 0.281,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": 0.3884263570577216,
-          "ci_low": -0.27682989168760463,
-          "ci_high": 1.061057904706228,
-          "bootstrap_p_value": 0.253
+          "ci_low": -0.35164026089154327,
+          "ci_high": 1.0568347868170231,
+          "bootstrap_p_value": 0.281
         },
         "168": {
           "point_estimate": 0.3884263570577216,
-          "ci_low": -0.2812727250205353,
-          "ci_high": 1.1118450141112954,
-          "bootstrap_p_value": 0.272
+          "ci_low": -0.3074936913016241,
+          "ci_high": 1.0786536350452978,
+          "bootstrap_p_value": 0.256
         }
       },
       "significant_after_holm": false
@@ -281,21 +281,21 @@
       "fold_label": "bull_2024",
       "benchmark": "risk_parity",
       "point_estimate": 0.0653214590641074,
-      "ci_low": -0.12113835639773735,
-      "ci_high": 0.253727315116302,
-      "bootstrap_p_value": 0.537,
+      "ci_low": -0.13064576643025277,
+      "ci_high": 0.2629861575772761,
+      "bootstrap_p_value": 0.507,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": 0.0653214590641074,
-          "ci_low": -0.12113835639773735,
-          "ci_high": 0.253727315116302,
-          "bootstrap_p_value": 0.537
+          "ci_low": -0.13064576643025277,
+          "ci_high": 0.2629861575772761,
+          "bootstrap_p_value": 0.507
         },
         "168": {
           "point_estimate": 0.0653214590641074,
-          "ci_low": -0.13909165292311695,
-          "ci_high": 0.27189995648683235,
-          "bootstrap_p_value": 0.556
+          "ci_low": -0.1502240248752947,
+          "ci_high": 0.28696553431004707,
+          "bootstrap_p_value": 0.584
         }
       },
       "significant_after_holm": false
@@ -306,21 +306,21 @@
       "fold_label": "choppy_2025",
       "benchmark": "buy_and_hold_btc",
       "point_estimate": -0.28774289958183896,
-      "ci_low": -1.1622450591821207,
-      "ci_high": 0.6515219898172774,
-      "bootstrap_p_value": 0.587,
+      "ci_low": -1.1731209929911692,
+      "ci_high": 0.623193648013648,
+      "bootstrap_p_value": 0.568,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.28774289958183896,
-          "ci_low": -1.1622450591821207,
-          "ci_high": 0.6515219898172774,
-          "bootstrap_p_value": 0.587
+          "ci_low": -1.1731209929911692,
+          "ci_high": 0.623193648013648,
+          "bootstrap_p_value": 0.568
         },
         "168": {
           "point_estimate": -0.28774289958183896,
-          "ci_low": -1.1083451886873559,
-          "ci_high": 0.6213327174513855,
-          "bootstrap_p_value": 0.5
+          "ci_low": -1.1377383814777795,
+          "ci_high": 0.6427552100793752,
+          "bootstrap_p_value": 0.491
         }
       },
       "significant_after_holm": false
@@ -331,21 +331,21 @@
       "fold_label": "choppy_2025",
       "benchmark": "equal_weight",
       "point_estimate": -0.009201773237896772,
-      "ci_low": -0.026331829051742802,
-      "ci_high": 0.008408944810056796,
-      "bootstrap_p_value": 0.314,
+      "ci_low": -0.0261576129969816,
+      "ci_high": 0.00894531970985319,
+      "bootstrap_p_value": 0.276,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.009201773237896772,
-          "ci_low": -0.026331829051742802,
-          "ci_high": 0.008408944810056796,
-          "bootstrap_p_value": 0.314
+          "ci_low": -0.0261576129969816,
+          "ci_high": 0.00894531970985319,
+          "bootstrap_p_value": 0.276
         },
         "168": {
           "point_estimate": -0.009201773237896772,
-          "ci_low": -0.02740130578178545,
-          "ci_high": 0.006602897402487082,
-          "bootstrap_p_value": 0.271
+          "ci_low": -0.027078146716084706,
+          "ci_high": 0.0077685882329288644,
+          "bootstrap_p_value": 0.287
         }
       },
       "significant_after_holm": false
@@ -356,21 +356,21 @@
       "fold_label": "choppy_2025",
       "benchmark": "markowitz",
       "point_estimate": -0.39277694396016394,
-      "ci_low": -0.9208035571746334,
-      "ci_high": 0.13115716730172083,
-      "bootstrap_p_value": 0.123,
+      "ci_low": -0.9225065548807215,
+      "ci_high": 0.10231395429472268,
+      "bootstrap_p_value": 0.118,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.39277694396016394,
-          "ci_low": -0.9208035571746334,
-          "ci_high": 0.13115716730172083,
-          "bootstrap_p_value": 0.123
+          "ci_low": -0.9225065548807215,
+          "ci_high": 0.10231395429472268,
+          "bootstrap_p_value": 0.118
         },
         "168": {
           "point_estimate": -0.39277694396016394,
-          "ci_low": -0.9215015479742646,
-          "ci_high": 0.08999404634491451,
-          "bootstrap_p_value": 0.111
+          "ci_low": -0.9212192298372074,
+          "ci_high": 0.13574550317021403,
+          "bootstrap_p_value": 0.145
         }
       },
       "significant_after_holm": false
@@ -381,21 +381,21 @@
       "fold_label": "choppy_2025",
       "benchmark": "risk_parity",
       "point_estimate": -0.0496964999852003,
-      "ci_low": -0.1863343888069861,
-      "ci_high": 0.08673097996841732,
-      "bootstrap_p_value": 0.475,
+      "ci_low": -0.18162986466172046,
+      "ci_high": 0.09912459551298207,
+      "bootstrap_p_value": 0.495,
       "block_size_sensitivity": {
         "24": {
           "point_estimate": -0.0496964999852003,
-          "ci_low": -0.1863343888069861,
-          "ci_high": 0.08673097996841732,
-          "bootstrap_p_value": 0.475
+          "ci_low": -0.18162986466172046,
+          "ci_high": 0.09912459551298207,
+          "bootstrap_p_value": 0.495
         },
         "168": {
           "point_estimate": -0.0496964999852003,
-          "ci_low": -0.1919157178881219,
-          "ci_high": 0.0806476009709371,
-          "bootstrap_p_value": 0.462
+          "ci_low": -0.19748125511679618,
+          "ci_high": 0.07524635250964855,
+          "bootstrap_p_value": 0.43
         }
       },
       "significant_after_holm": false
@@ -432,7 +432,8 @@
     "n_bootstrap_reps": 2000,
     "ci_level": 0.95,
     "n_comparisons_holm": 16,
-    "pooling_method": "각 seed의 독립 bootstrap 리샘플 분포(reps개)를 이어붙인 pooled distribution",
+    "pooling_method": "PPO 5-seed + benchmark, 총 6개 net returns 시계열을 StationaryBootstrap에 동시에 넣어 매 replicate마다 동일한 블록 인덱스로 함께 리샘플하고, 그 replicate에서 mean_seed[Sharpe(PPO_seed) - Sharpe(benchmark)]를 계산한 표본분포 (multi_seed_bootstrap_distribution 참고)",
+    "rng_seed_derivation": "MASTER_SEED=20261007에서 derive_seed(policy, fold, benchmark, block_size)로 SHA-256 기반 결정론적 파생 - Python 내장 hash()는 PYTHONHASHSEED 랜덤화로 프로세스마다 달라져 사용하지 않음",
     "interpretation_note": "유의하지 않음은 동등성의 증거가 아니다. 정확한 해석: 이 두 OOS 국면에서 PPO와 전통 벤치마크 간 Sharpe 차이가 0과 다르다는 통계적 증거를 얻지 못했다.",
     "generalization_note": "OOS 국면(bull_2024, choppy_2025) 2개 한정 결론. 모든 시장 국면 일반화 주장 아님."
   }

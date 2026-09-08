@@ -30,24 +30,32 @@ walk_forward_benchmarks.py의 비교표는 PPO(seed 5개 반복)의 mean Sharpe�
 ----------------
 - 벤치마크도 evaluate.py와 동일한 정의(turnover*cost_rate 차감)의 net
   returns를 사용해 PPO와 조건을 맞춘다.
-- 통계량을 Sharpe(PPO) - Sharpe(benchmark)로 정확히 정의하고,
-  arch.bootstrap.StationaryBootstrap에 PPO/벤치마크 returns를 함께
-  (페어링된 인덱스로) 넣어 매 리샘플마다 두 시계열을 동시에 블록
-  리샘플한 뒤 그 통계량을 계산한다 (.apply()로 원시 리샘플 분포를 얻음 -
-  이래야 실제 bootstrap 분포에서 percentile CI와 p-value를 낼 수 있다).
-- seed 불확실성과 시계열(bootstrap) 불확실성을 pooled bootstrap으로
-  결합한다: 각 seed마다 독립적으로 시계열 bootstrap 분포(reps개)를 만든
-  뒤, 5개 seed의 분포를 전부 이어붙여 하나의 결합 분포로 취급한다 -
-  nested bootstrap(외부 seed 리샘플 + 내부 시계열 리샘플)보다 구현이
-  간단하고, seed=5로는 외부 맨의 분산 추정 자체가 불안정하다는 문제도
-  피한다.
-- 실제 bootstrap p-value: 결합 분포가 0을 기준으로 얼마나 치우쳐
+- 통계량을 Sharpe(PPO) - Sharpe(benchmark)로 정확히 정의한다.
+- seed 불확실성과 시계열(bootstrap) 불확실성을 함께 반영하기 위해, PPO
+  5-seed net returns와 벤치마크 net returns, 총 6개 시계열을
+  arch.bootstrap.StationaryBootstrap에 동시에 넣는다 - 매 리샘플
+  replicate마다 "동일한" 블록 인덱스로 6개 시계열이 함께 리샘플되므로
+  seed 간·PPO-벤치마크 간 시장 충격 상관관계가 보존된 채로,
+  mean_seed[Sharpe(PPO_seed) - Sharpe(bench)]라는 통계량(추정하려는
+  모수 그 자체)의 replicate별 값을 얻는다. 이 replicate 값들의 분포가
+  올바른 표본분포다 (자세한 내용은 multi_seed_bootstrap_distribution()
+  참고. 최초 구현은 seed마다 "독립적으로" bootstrap을 돌려 그 분포들을
+  단순히 이어붙였는데, 이는 "seed 하나만 있었다면 나왔을 결과"의
+  분포에 가깝고 CI 폭을 약 sqrt(5)배 부풀렸다 - 2026-09-08 리뷰에서
+  시뮬레이션으로 확인 후 지금 방식으로 교체함).
+- 실제 bootstrap p-value: replicate 분포가 0을 기준으로 얼마나 치우쳐
   있는지로 계산하는 양측검정 (2*min(P(dist<=0), P(dist>=0))).
 - 비교가 여러 개(정책 2 x 벤치마크 4 x fold 2 = 16개)이므로
   Holm-Bonferroni 보정을 적용한다.
 - block size는 24(하루 주기성)와 168(주 단위 주기성)을 모두 계산해
   민감도를 확인한다 - 결과가 크게 달라지면 결론에 그 사실을 명시해야
   한다.
+- bootstrap의 rng seed는 (policy, fold, benchmark, block_size) 조합에서
+  SHA-256으로 결정론적으로 파생한다 (2026-09-08 리뷰 - Major: 이전에는
+  Python 내장 hash()를 썼는데, PYTHONHASHSEED가 프로세스마다 랜덤이라
+  hash(문자열) 값이 실행마다 달라져 같은 명령을 재실행해도 CI/p-value가
+  달라질 수 있었다 - 재현성이 없는 "재현 가능한 검정"이었던 셈. 파생
+  규칙은 derive_seed() 참고, MASTER_SEED와 함께 결과 JSON에 기록한다).
 - OOS 국면이 bull_2024/choppy_2025 2개뿐이므로 "모든 시장 국면에
   일반화된다"는 주장은 하지 않는다 - 이 두 국면 한정 결론이다.
 - 결과 해석 문구: 유의하지 않다고 "PPO와 벤치마크가 통계적으로 동등하다"
@@ -71,6 +79,7 @@ Holm 보정 후 유의성, block size 민감도를 출력.
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import os
 
@@ -96,6 +105,24 @@ PRIMARY_BLOCK_SIZE = 24
 N_BOOTSTRAP_REPS = 2000
 PERIODS_PER_YEAR = 24 * 365
 CI_LEVEL = 0.95
+
+# bootstrap rng seed 파생용 master seed. 2026-09-08 리뷰 - Major: 이전에는
+# Python 내장 hash(bench_strategy)를 그대로 rng_seed로 썼는데, PYTHONHASHSEED가
+# 프로세스마다 랜덤이라 같은 문자열의 hash() 값이 실행마다 달라진다 (실측:
+# 동일 문자열이 프로세스 재실행 시 1058216092 / 1901723970으로 다르게 나옴).
+# 즉 통계 검정을 재실행하면 CI/p-value가 매번 바뀔 수 있어 "재현 가능한
+# 검정"이 아니었다. derive_seed()로 (policy, fold, benchmark, block_size)
+# 조합에서 SHA-256 기반 결정론적 정수를 파생해 이 문제를 없앤다.
+MASTER_SEED = 20261007  # 임의의 고정값 - 이 스크립트를 다시 실행해도 항상 동일
+
+
+def derive_seed(*parts: str) -> int:
+    """(policy, fold, benchmark, block_size) 등 문자열 조합에서 결정론적
+    정수 seed를 파생. hashlib.sha256은 PYTHONHASHSEED와 무관하게 항상
+    동일한 값을 내므로, 이 함수는 프로세스·환경에 관계없이 재현 가능하다."""
+    key = f"{MASTER_SEED}|" + "|".join(str(p) for p in parts)
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) % (2**31)
 
 
 def load_locked_candidates() -> dict:
@@ -246,8 +273,9 @@ def compute_ppo_vs_benchmark(locked: dict) -> list[dict]:
 
                 block_size_results = {}
                 for block_size in BLOCK_SIZES:
+                    rng_seed = derive_seed(policy_key, fold, bench_strategy, block_size)
                     dist = multi_seed_bootstrap_distribution(
-                        seed_ppo_returns, bench_net_returns, block_size, seeds, rng_seed=hash(bench_strategy) % (2**31)
+                        seed_ppo_returns, bench_net_returns, block_size, seeds, rng_seed=rng_seed
                     )
                     block_size_results[block_size] = ci_and_pvalue(dist, mean_point)
 
@@ -353,7 +381,19 @@ def main() -> None:
                 "n_bootstrap_reps": N_BOOTSTRAP_REPS,
                 "ci_level": CI_LEVEL,
                 "n_comparisons_holm": len(ppo_vs_benchmark_results),
-                "pooling_method": "각 seed의 독립 bootstrap 리샘플 분포(reps개)를 이어붙인 pooled distribution",
+                "pooling_method": (
+                    "PPO 5-seed + benchmark, 총 6개 net returns 시계열을 "
+                    "StationaryBootstrap에 동시에 넣어 매 replicate마다 동일한 "
+                    "블록 인덱스로 함께 리샘플하고, 그 replicate에서 "
+                    "mean_seed[Sharpe(PPO_seed) - Sharpe(benchmark)]를 계산한 "
+                    "표본분포 (multi_seed_bootstrap_distribution 참고)"
+                ),
+                "rng_seed_derivation": (
+                    f"MASTER_SEED={MASTER_SEED}에서 derive_seed(policy, fold, "
+                    "benchmark, block_size)로 SHA-256 기반 결정론적 파생 - "
+                    "Python 내장 hash()는 PYTHONHASHSEED 랜덤화로 프로세스마다 "
+                    "달라져 사용하지 않음"
+                ),
                 "interpretation_note": (
                     "유의하지 않음은 동등성의 증거가 아니다. 정확한 해석: "
                     "이 두 OOS 국면에서 PPO와 전통 벤치마크 간 Sharpe 차이가 "

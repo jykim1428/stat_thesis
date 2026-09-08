@@ -63,7 +63,17 @@ def get_git_info() -> dict:
     # 그대로 기록한다 - 정직하게 무엇이 untracked였는지 남기는 게 목적.
     is_clean = status_output == ""
     return {
-        "commit_sha": commit_sha,
+        # source_commit_sha: 이 manifest가 서술하는 숫자/코드가 확정된 커밋
+        # (= manifest 생성 시점의 HEAD). manifest.json 자체는 이 커밋에는
+        # 없고 "다음" 커밋에 저장되므로, manifest를 담은 커밋 SHA는 생성
+        # 시점에 알 수 없다 - 커밋 후 manifest_commit_note를 참고할 것
+        # (2026-09-08 리뷰 - Moderate: "commit X 기준 freeze"라는 표현이
+        # 'X를 checkout하면 manifest도 있다'로 오독될 수 있어 명칭 구분).
+        "source_commit_sha": commit_sha,
+        "manifest_commit_note": (
+            "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. "
+            "git log --follow results/frozen_summaries/manifest.json 으로 확인 가능."
+        ),
         "worktree_clean": is_clean,
         "untracked_or_modified": status_output.splitlines() if status_output else [],
     }
@@ -194,7 +204,7 @@ def main() -> None:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
     print(f"Manifest 저장: {OUTPUT_PATH}")
-    print(f"  commit_sha: {manifest['git']['commit_sha']}")
+    print(f"  source_commit_sha: {manifest['git']['source_commit_sha']}")
     print(f"  worktree_clean: {manifest['git']['worktree_clean']}")
     if not manifest["git"]["worktree_clean"]:
         print(f"  untracked/modified: {manifest['git']['untracked_or_modified']}")
