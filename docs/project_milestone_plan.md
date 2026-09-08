@@ -195,11 +195,20 @@
 
 ### 10월 3주차 — 결과 동결 (freeze)
 
-- [ ] 결과 manifest 작성: commit SHA, cost_rate, 확정 후보/seed 설정,
+- [x] 결과 manifest 작성: commit SHA, cost_rate, 확정 후보/seed 설정,
       정확한 평가 시작·종료 시각, 원시 backtest CSV 체크섬(SHA-256)
       (2026-09-07 리뷰 권고 - Moderate: fresh clone에서 재현 가능하도록)
-- [ ] **🚩 모든 숫자 freeze** — 11월엔 이 숫자로만 씀
-- **산출물:** results/frozen_summaries/manifest.json + 확정 성능 매트릭스
+- [x] **🚩 모든 숫자 freeze** — 11월엔 이 숫자로만 씀
+- **산출물:** `results/frozen_summaries/manifest.json` + 확정 성능 매트릭스
+- **완료 (2026-09-08):** `experiments/walk_forward_freeze_manifest.py`로
+  생성. commit `95ad5f2` 기준, PPO backtest 20개 + model.zip 20개 +
+  벤치마크 8개 + frozen_summaries 12개 전부 SHA-256 기록. Python 3.13.7,
+  torch 2.13.0, scipy 1.18.0(arch 설치로 1.16.3에서 자동 업그레이드,
+  requirements.txt 갱신) 등 패키지 버전 고정. cost_rate=0.001,
+  periods_per_year=8760, Fold2 실제 데이터 종료(2025-12-31 00:00), 3→5
+  seed post-hoc 확장 이력과 원본 3-seed 보존 위치, bootstrap 설정
+  (block=24/168, reps=2000, pooling 정의) 전부 포함. 이 시점 이후
+  숫자·설정 재조정 금지 — 11월엔 이 manifest 기준으로만 논문 작성.
 
 ### 10월 4주차 — 인수인계 + 버퍼
 

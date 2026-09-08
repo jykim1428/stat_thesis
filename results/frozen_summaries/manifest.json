@@ -1,0 +1,427 @@
+{
+  "generated_at_utc": "2026-09-08T01:38:24.284842+00:00",
+  "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
+  "git": {
+    "commit_sha": "95ad5f277353c86cc90c49bbcea580e812a153d5",
+    "worktree_clean": false,
+    "untracked_or_modified": [
+      "?? data/raw/",
+      "?? docs/session_report_2026-08.md",
+      "?? docs/weekly_report_2026-08-w1.md"
+    ]
+  },
+  "package_versions": {
+    "python": "3.13.7",
+    "torch": "2.13.0",
+    "stable-baselines3": "2.9.0",
+    "gym": "0.26.2",
+    "gymnasium": "1.3.0",
+    "shimmy": "2.0.1",
+    "pandas": "3.0.5",
+    "numpy": "2.2.6",
+    "empyrical-reloaded": "0.5.12",
+    "arch": "8.0.0",
+    "quantstats": "0.0.81",
+    "scipy": "1.18.0",
+    "PyPortfolioOpt": "1.6.0"
+  },
+  "evaluation_config": {
+    "cost_rate": 0.001,
+    "periods_per_year": 8760,
+    "periods_per_year_note": "1시간봉 데이터 연율화 상수 (evaluate.py, walk_forward_visualizations.py 공통)",
+    "fold2_actual_end_note": "Fold2(choppy_2025) 명목 종료는 2026-01-01(반개구간 상한)이지만 원천 DB(crypto_market_features.db)의 실제 마지막 시점은 2025-12-31 00:00:00 - 모든 전략(PPO, 벤치마크)에 동일하게 적용됨."
+  },
+  "locked_candidates": {
+    "_comment": "Fold 1 side_2023 validation 결과로 확정한 최종 후보. 2026-09-02, docs/walk_forward_design.md와 walk_forward_orchestrator.py의 fold1_final/fold2_final 실행 잠금(LOCKED_CANDIDATES_PATH)이 참조함. OOS(bull_2024, choppy_2025) 확인 전 동결 - 이후 재조정 금지.",
+    "selection_rule": "정책망별로 고정된 3개 seed(42/43/44)의 거래비용 차감(net) validation Sharpe 산술평균이 최대인 후보를 선택한다. 소수점 셋째 자리까지 동률이면 (1) 최저 seed Sharpe가 높은 후보, 그래도 동률이면 (2) 평균 Calmar가 높은 후보, 그래도 동률이면 (3) 더 작은 구조/낮은 계산비용의 후보를 선택한다. 표준편차는 선택 점수에 포함하지 않고 불확실성으로 별도 보고한다.",
+    "selection_rule_note": "후보/seed 조합 자체는 fold1_search 실행 전에 고정했으나, 이 selection_rule 문구는 validation 결과를 검토한 뒤 확정했다 - 따라서 '사전 정의된 기준'이 아니라 'validation 결과 검토 후 확정하고 OOS 확인 전 동결한 기준'으로 기록한다 (2026-09-02 리뷰 반영).",
+    "seeds_note": "2026-09-07: 마일스톤 문서의 '최소 5시드' 원칙에 맞춰 fold1_final/fold2_final(OOS 실행)의 seeds를 42/43/44에서 45,46을 추가해 5개로 확장했다. fold1_search(후보 선택 근거, validation_sharpe_* 필드)는 이 seeds 필드를 참조하지 않으므로 재실행하지 않았다 - 이미 3-seed로 확정한 candidate03/candidate04 선택 자체는 바뀌지 않는다. 후보나 하이퍼파라미터는 변경하지 않았고, 추가 seed(45,46)를 두 정책·두 fold에 동일하게 적용했으므로 모델 선택 누수나 cherry-picking은 없다.",
+    "seeds_note_protocol_status": "다만 최초 3-seed OOS는 2026-09-02에 완료됐고 '최소 5시드' 원칙은 2026-09-03 마일스톤 문서에 추가됐으며 실제 확장 실행은 2026-09-07에 이뤄졌다 - 시간 순서상 'OOS 결과를 본 뒤 seed 수를 바꾸지 않는다'는 원칙과 문자 그대로는 충돌한다 (2026-09-07 코덱스 3차 리뷰 지적). 따라서 이 확장은 사전에 계획된 프로토콜이 아니라 post-hoc robustness extension으로 명시한다: 논문 본문 표는 5-seed 전체 결과를 사용하되, 방법론/각주에는 '초기 프로토콜은 3-seed였으며, OOS 확인 후 후보를 변경하지 않은 채 2개 seed(45,46)를 두 정책·두 fold에 동일하게 일괄 추가한 post-hoc robustness extension'이라고 밝힌다. 원래 3-seed 결과는 results/frozen_summaries/에 별도 보존한다. 이 기록 이후로는 seed 추가·중단 기준을 다시 변경하지 않는다.",
+    "cost_rate": 0.001,
+    "mlp": {
+      "candidate": "candidate03",
+      "hparams_note": "learning_rate=1e-3",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "validation_sharpe_mean": 0.762,
+      "validation_sharpe_std": 0.045,
+      "validation_sharpe_worst_seed": 0.712,
+      "validation_seeds_note": "validation_sharpe_*는 fold1_search 3-seed(42/43/44) 기준 그대로 - seeds 확장은 OOS(fold1_final/fold2_final) 전용"
+    },
+    "transformer": {
+      "candidate": "candidate04",
+      "hparams_note": "n_layers=1 (기본 2에서 축소)",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "validation_sharpe_mean": 0.859,
+      "validation_sharpe_std": 0.058,
+      "validation_sharpe_worst_seed": 0.794,
+      "validation_seeds_note": "validation_sharpe_*는 fold1_search 3-seed(42/43/44) 기준 그대로 - seeds 확장은 OOS(fold1_final/fold2_final) 전용"
+    }
+  },
+  "seed_protocol_history": {
+    "initial_protocol": "3-seed (42, 43, 44), 2026-09-02 완료",
+    "extension": "5-seed (42~46), 2026-09-07 실행 - seeds 45,46 post-hoc 추가",
+    "extension_type": "post-hoc robustness extension (사전 계획된 프로토콜 아님, locked_candidates.json의 seeds_note_protocol_status 참고)",
+    "candidate_reselection": "없음 - 후보/하이퍼파라미터 변경 없이 seed만 추가",
+    "original_3seed_preserved_at": [
+      "results/frozen_summaries/mlp_fold1_final_summary_3seed_original.csv",
+      "results/frozen_summaries/mlp_fold2_final_summary_3seed_original.csv",
+      "results/frozen_summaries/transformer_fold1_final_summary_3seed_original.csv",
+      "results/frozen_summaries/transformer_fold2_final_summary_3seed_original.csv"
+    ]
+  },
+  "statistical_test_config": {
+    "method": "arch.bootstrap.StationaryBootstrap, pooled across 5 seeds + benchmark (6 series resampled jointly per replicate)",
+    "primary_block_size": 24,
+    "sensitivity_block_size": 168,
+    "n_bootstrap_reps": 2000,
+    "ci_level": 0.95,
+    "n_comparisons_holm": 16,
+    "statistic": "mean_seed[Sharpe(PPO_seed) - Sharpe(benchmark)] per bootstrap replicate"
+  },
+  "quantstats_reports_status": "참고용(non-canonical). 대표 seed 1개(42)만 사용한 단일 시계열 tearsheet이며, 본문 수치의 근거는 results/walk_forward/*/metrics.json 및 results/frozen_summaries/*.csv이다.",
+  "ppo_backtest_files": {
+    "mlp_fold1_final_seed42": {
+      "policy": "mlp",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate03",
+      "seed": 42,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "8d5bc64cd6ed20b83a0841bdc32850b8b14a9e5c3ddec44e3bedbf7784daa4de",
+      "model_zip_sha256": "d4178e5a722bb67cd3f92bb88b688441c696b4f6f6e5b8b8cee2593d81183c5f"
+    },
+    "mlp_fold1_final_seed43": {
+      "policy": "mlp",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate03",
+      "seed": 43,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "6eacafb8550a869e1743cfe1c7ac909748f7c4ff728c6aaa4854245069bc6e9b",
+      "model_zip_sha256": "b842f252c1ec417c776eb70bb85f9496c2f771fd4a0668137479c7d5f330e3e7"
+    },
+    "mlp_fold1_final_seed44": {
+      "policy": "mlp",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate03",
+      "seed": 44,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "99438adfa6a92ecfb7dc2704aff30bab3884529c05966d8918f0dfc54c539898",
+      "model_zip_sha256": "603e2ac32fbdd14f9ae2e4cdc51feeb67928ece2f35e09f26afd32102b7d37be"
+    },
+    "mlp_fold1_final_seed45": {
+      "policy": "mlp",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate03",
+      "seed": 45,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "f7774fe2ed5d54b3858c378c1d69971722b4a8aa13763d0c5c5c33b0cce7b573",
+      "model_zip_sha256": "476f4ef1a55e097cc301df75b134bf386644243076cc269bf6cf5e417fcc1e3d"
+    },
+    "mlp_fold1_final_seed46": {
+      "policy": "mlp",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate03",
+      "seed": 46,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "f3fbf4409f1345bdb751107b8dbd621fa54bdb53f5b7115858a9b739016746d9",
+      "model_zip_sha256": "9551060615921d4a3fa50cac15e55df53250394ce47df17510f9c3b01e343594"
+    },
+    "transformer_fold1_final_seed42": {
+      "policy": "transformer",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate04",
+      "seed": 42,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "733aa58b5a484d1a90a177096f2f5fc5411badb74873891812e5c8202cec3f14",
+      "model_zip_sha256": "ec60af326e880044bd20677a7795cf807aab8c1206feb4d936f0317777e1bcb5"
+    },
+    "transformer_fold1_final_seed43": {
+      "policy": "transformer",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate04",
+      "seed": 43,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "218ec07bda53f7c6f852e8e79bb57415b0fff10cf25fbdd3524dcce448cb7bdb",
+      "model_zip_sha256": "0c28d6556ee80ba9446d94cd4bdff4a7d73677db99c7392d66fed2504b6789c1"
+    },
+    "transformer_fold1_final_seed44": {
+      "policy": "transformer",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate04",
+      "seed": 44,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "798a0fc01f2974fa233663e6e13ecc8bf70a0c9481d317d9c6fbebc03261ae6e",
+      "model_zip_sha256": "750a3607956896e46a52de3ae15748c70c24b531159949209ed119b267d0ffb8"
+    },
+    "transformer_fold1_final_seed45": {
+      "policy": "transformer",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate04",
+      "seed": 45,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "d00d90da5d6967c02c599a9d2a66e16cc6a735e256c09dd7414a7b5fd6f079c1",
+      "model_zip_sha256": "74840d8a0280a6f09ffcfff2cf454b46d89b717a123cb55ec7cf151bc87077f9"
+    },
+    "transformer_fold1_final_seed46": {
+      "policy": "transformer",
+      "fold": "fold1_final",
+      "fold_label": "bull_2024",
+      "candidate": "candidate04",
+      "seed": 46,
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "97eb7ce441576aba1f34114575f1cdf80ad1340b62819515c54db91d35a4bae1",
+      "model_zip_sha256": "27b3c0b8565f4a555c8ab988ff2ce315dd20c912df20e37deca35639e4ad41dd"
+    },
+    "mlp_fold2_final_seed42": {
+      "policy": "mlp",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate03",
+      "seed": 42,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "1bae50136312abea94e380690acb100a3e5a0b86e253cc128b85c267fa220584",
+      "model_zip_sha256": "c67df444281464d39759c02e797f9e02c039a50d8878f58c5c6ea6622c07fd35"
+    },
+    "mlp_fold2_final_seed43": {
+      "policy": "mlp",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate03",
+      "seed": 43,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "1119bf028a5e90ea32c8415febccfee71292a0e140cdc2d0c513bb6bc07966d6",
+      "model_zip_sha256": "b154b77d2ef4fa913857b0e3dd5c3d731e9ac71870524277efb9b8fa62e60da5"
+    },
+    "mlp_fold2_final_seed44": {
+      "policy": "mlp",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate03",
+      "seed": 44,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "d0add1827c808dfe6eee7b309e0e017a385b5f6e00408d3cde108e819b6114dc",
+      "model_zip_sha256": "75aa068a7cd9729545365141a1decf459c5562088c117decb18fd42b8ab1d9ee"
+    },
+    "mlp_fold2_final_seed45": {
+      "policy": "mlp",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate03",
+      "seed": 45,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "eb920d8b36587188390de39a6a0d7c534ef3579ce1365da8a5b0557f7e3683c2",
+      "model_zip_sha256": "25e878ff644e7ff962e49c125b03a06489e7fb049ed334d64c5bea807190d9c0"
+    },
+    "mlp_fold2_final_seed46": {
+      "policy": "mlp",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate03",
+      "seed": 46,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "dae4fea17dcaa23b1e0c525a54846d341032ef0e45f52cdcf957a733202ba65e",
+      "model_zip_sha256": "e1984a10130876a1e593d9195fb3fce7d057720417999269df94bb7bcf1691cc"
+    },
+    "transformer_fold2_final_seed42": {
+      "policy": "transformer",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate04",
+      "seed": 42,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "db8278004aaba9b3847ca1d51cf8b50a2b19188ddf6aac57247005135834b87a",
+      "model_zip_sha256": "7697fd2bde1c2cc91c5704542db0189fe0df8d3d4e1b4ce67963e4386a381876"
+    },
+    "transformer_fold2_final_seed43": {
+      "policy": "transformer",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate04",
+      "seed": 43,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "1f5ec6f3922b53ba71a787775a535f9324b13a106847fe694b74d8a109f71f68",
+      "model_zip_sha256": "24dc485922386a2db7824f3339277a460089285a790e744693e926e0e1214160"
+    },
+    "transformer_fold2_final_seed44": {
+      "policy": "transformer",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate04",
+      "seed": 44,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "f62d18a7ff95672265ed2da5a735084062402a044a056d8f47cced30f92f3704",
+      "model_zip_sha256": "ec8533c2ae6bccf9584eb0a4f274428f1fb3e2780d5c62c76a98135f1099d2e7"
+    },
+    "transformer_fold2_final_seed45": {
+      "policy": "transformer",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate04",
+      "seed": 45,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "f9477817b5330a57dbcbd08162e8c42139281761c200d99aaa283062ba584bf3",
+      "model_zip_sha256": "c54329e9c3140efa8faab2537b7cdb615f0054e71ecc97f86da79a9f89d87648"
+    },
+    "transformer_fold2_final_seed46": {
+      "policy": "transformer",
+      "fold": "fold2_final",
+      "fold_label": "choppy_2025",
+      "candidate": "candidate04",
+      "seed": 46,
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "26adef4ab77769018e76106542d61409999b21c7e744a7d56b4b2b3db4c5efff",
+      "model_zip_sha256": "d9c1c3eea21cd0849abac1abccf1fcc9ca755100a54dec767637136ca5f7b0c4"
+    }
+  },
+  "benchmark_files": {
+    "fold1_oos_buy_and_hold_btc": {
+      "fold": "fold1_oos",
+      "fold_label": "bull_2024",
+      "strategy": "buy_and_hold_btc",
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "8b16fb663aad332d18a1fafa51b9fa3edb960c963c92bbe2a1c41e2f501d5628"
+    },
+    "fold1_oos_equal_weight": {
+      "fold": "fold1_oos",
+      "fold_label": "bull_2024",
+      "strategy": "equal_weight",
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "90f43870ceec39f8a79fafc6a4406b75fa95ad12397fb468a35437710b08f31a"
+    },
+    "fold1_oos_markowitz": {
+      "fold": "fold1_oos",
+      "fold_label": "bull_2024",
+      "strategy": "markowitz",
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "341f20e191749eba85dbf0370ef4fbd2e826f4d34c0fe8187ddb743754a30071"
+    },
+    "fold1_oos_risk_parity": {
+      "fold": "fold1_oos",
+      "fold_label": "bull_2024",
+      "strategy": "risk_parity",
+      "eval_start": "2023-10-16 00:00:00",
+      "eval_end": "2025-01-01 23:00:00",
+      "n_rows": 10656,
+      "sha256": "c1f957650228e75d4c7da8db367502cbc8543689760d94e59f7fb630f8f2de6b"
+    },
+    "fold2_oos_buy_and_hold_btc": {
+      "fold": "fold2_oos",
+      "fold_label": "choppy_2025",
+      "strategy": "buy_and_hold_btc",
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "169e983a48884c8a5ad3b2c576ef59cb92ef730163990257aaa53663ce91ae19"
+    },
+    "fold2_oos_equal_weight": {
+      "fold": "fold2_oos",
+      "fold_label": "choppy_2025",
+      "strategy": "equal_weight",
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "8817d1b449c3d45f902e52dbfd16e821a4c72a75ddbfc265acb60671b05cbc93"
+    },
+    "fold2_oos_markowitz": {
+      "fold": "fold2_oos",
+      "fold_label": "choppy_2025",
+      "strategy": "markowitz",
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "5b5505af6011466c275748b9604d4243a507aa2da8fb90740aae9048718ae17a"
+    },
+    "fold2_oos_risk_parity": {
+      "fold": "fold2_oos",
+      "fold_label": "choppy_2025",
+      "strategy": "risk_parity",
+      "eval_start": "2025-01-02 00:00:00",
+      "eval_end": "2025-12-31 00:00:00",
+      "n_rows": 8713,
+      "sha256": "3164288c180dc0b971a8522690e9e52b791427f6d9dca27ecd1c61e9e7aa1cb9"
+    }
+  },
+  "frozen_summary_files": {
+    "benchmarks_summary.csv": "92247517f163cf9cf86f40e51ab79a098445f5099223ec037468274794508a9a",
+    "mlp_fold1_final_summary.csv": "8b14274f90f60bef391629f6e6a9ec2fbbef29523061e0c75886759e09161517",
+    "mlp_fold1_final_summary_3seed_original.csv": "4fe75bd11bbd2623412a013cd26a0bd03e113c0a7938e4f0a4fe44e44b97a230",
+    "mlp_fold1_search_summary.csv": "4524d32cd65a72506721158065c4f7f0b4084dfdd92db0bf215b0ee1741042c5",
+    "mlp_fold2_final_summary.csv": "071b19b901563a1955f62c1ee0298fd169ada6433f04bf4bb896bcb7b4a5600e",
+    "mlp_fold2_final_summary_3seed_original.csv": "30c73090ecd04796064fd3dc58367c2a083b9d6fdfc4c5a1cabfab43e3b4335d",
+    "statistical_tests.json": "bf1e001815bf7904bb7b843cc57f29cd662ae68bf9e19dc67ac2ca70a42e1592",
+    "transformer_fold1_final_summary.csv": "54dd46f98fb864a70df3c91cd293de6a0b0dab148655b6276d5a1d855b3a3985",
+    "transformer_fold1_final_summary_3seed_original.csv": "8ed8d5a33a7f0b198b47009f3719f604e8bd7bff822366d35f8f89a11b1ab7e1",
+    "transformer_fold1_search_summary.csv": "c60a00e223136999479d55efd53606b8033ef8272a1a0e9708e9be39b1e35231",
+    "transformer_fold2_final_summary.csv": "505174ff7b95af27c11b42bb23291010399d4f2a3a81959f864d97c23cd20d03",
+    "transformer_fold2_final_summary_3seed_original.csv": "ad55d9df3423e8475eceb17d40de851b1b46a791e1025a3de9c8db7ca9daa8df"
+  },
+  "raw_input_files": {
+    "crypto_market_features.db": "7c5a6436d97f4b6f8b42a8f82b942b40e27003d0e4d7bfe10003ced54acc05dd"
+  }
+}
