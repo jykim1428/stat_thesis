@@ -53,13 +53,15 @@
 > Equal-Weight, Risk Parity는 모두 손실을 기록했다.
 
 > **(통계적 엄밀성 — 반드시 이 문장 또는 동등한 취지로 넣을 것)** 같은
-> 시간 인덱스의 PPO와 벤치마크 net returns 차이를 stationary block
-> bootstrap(block size 24, 민감도 확인용 168에서도 유사)으로 리샘플해
-> Sharpe(PPO) - Sharpe(benchmark)의 95% 신뢰구간과 bootstrap p-value를
-> 계산한 결과, 정책 2종 × 벤치마크 4종 × fold 2개의 16개 비교 전부
-> Holm-Bonferroni 보정 후 유의하지 않았다(최소 p=0.138, Transformer vs
-> Minimum-Variance, choppy_2025). **이 두 OOS 국면에서 PPO와 전통
-> 벤치마크 간 Sharpe 차이가 0과 다르다는 통계적 증거를 얻지 못했다.**
+> 시간 인덱스의 PPO 5-seed와 벤치마크 net returns를 함께(6개 시계열을
+> 동일한 블록 인덱스로) stationary block bootstrap(block size 24, 민감도
+> 확인용 168에서도 유사)으로 리샘플해, 매 리샘플에서 5-seed 평균
+> Sharpe(PPO) - Sharpe(benchmark)를 계산하는 방식으로 95% 신뢰구간과
+> bootstrap p-value를 구했다. 정책 2종 × 벤치마크 4종 × fold 2개의 16개
+> 비교 전부 Holm-Bonferroni 보정 후 유의하지 않았다(최소 p=0.123,
+> Transformer vs Minimum-Variance, choppy_2025). **이 두 OOS 국면에서
+> PPO와 전통 벤치마크 간 Sharpe 차이가 0과 다르다는 통계적 증거를 얻지
+> 못했다.**
 
 > 위 결과를 "PPO와 벤치마크가 통계적으로 동등하다"고 서술해서는 안 된다
 > — 비유의는 동등성의 증거가 아니며, 동등성을 주장하려면 사전에 정의된
@@ -76,12 +78,19 @@
 ## 4. 정책 행동 진단 (가장 강한 문장 — 논문의 핵심 기여 중 하나가 될 수 있음)
 
 > 저성과의 원인을 진단하기 위해 각 정책이 실제로 지시한 목표 비중
-> (target actions, 가격 변동이 반영되기 전의 raw policy output)을
-> 직접 분석했다. 두 정책 모두 OOS 전체 구간에서 목표 비중의 스텝 간
-> 평균 변화량이 3×10⁻⁹~1×10⁻⁸ 수준으로, 이는 float32 연산 정밀도에
-> 해당하는 값이다. 즉 학습된 정책은 관측(observation)이 매 시점 달라
-> 져도 사실상 동일한 action을 출력했으며, 상태 의존적인 동적 자산배분
-> 행동은 관찰되지 않았다.
+> (target_weights — 환경이 PPO raw action을 softmax로 정규화해 저장한
+> 값, 가격 변동이 반영되기 전의 리밸런싱 목표)을 직접 분석했다. 두
+> 정책 모두 OOS 전체 구간에서 목표 비중의 스텝 간 평균 변화량이
+> 3×10⁻⁹~1×10⁻⁸ 수준으로, 이는 float32 연산 정밀도에 해당하는 값이다.
+> 즉 학습된 정책은 관측(observation)이 매 시점 달라져도 사실상 동일한
+> action을 출력했으며, 상태 의존적인 동적 자산배분 행동은 관찰되지
+> 않았다.
+>
+> 다만 이는 "모든 seed가 동일한 배분을 학습했다"는 뜻이 아니다. seed
+> 간에는 시간 평균 목표 비중이 자산별로 표준편차 약 1~3%p, 최대 범위
+> 약 8%p(현금 비중은 약 8.5%~14.2%) 정도의 차이를 보였다 — 즉 각 seed는
+> 서로 다른 정적(static) 포트폴리오를 학습했고, 그 정적 배분이 각 seed
+> 내부에서는 시간에 따라 변하지 않은 것이다.
 
 > 이 결과와 일관되게, PPO의 시간별 순수익률은 Equal-Weight 벤치마크의
 > 순수익률과 상관계수 0.999 이상을 기록했다. 목표 현금 비중 역시 15%
@@ -96,8 +105,9 @@
 
 ## 5. 논문 결론 문단 (종합, 초안)
 
-> 사전에 고정된 후보와 seed 프로토콜을 사용한 regime-preserving
-> expanding-window walk-forward 평가에서, MLP 및 Transformer 기반 PPO
+> OOS 평가 전에 고정된 후보 설정과, 사후 강건성 확장을 투명하게 보고한
+> 5-seed 결과를 사용한 regime-preserving expanding-window walk-forward
+> 평가에서, MLP 및 Transformer 기반 PPO
 > 정책은 전통적인 포트폴리오 전략 대비 일관된 위험조정 성과 우위를
 > 보이지 않았으며, 두 OOS 국면에서 PPO와 벤치마크 간 Sharpe 차이가
 > 0과 다르다는 통계적 증거도 확인되지 않았다. 두 정책망(MLP,
@@ -116,3 +126,8 @@
 - 통계 검정: `results/frozen_summaries/statistical_tests.json`
 - 행동 진단: `results/walk_forward_behavior_diagnostics/diagnostics.json`
   (`experiments/walk_forward_behavior_diagnostics.py`로 재생성 가능)
+- 논문용 그림: `results/walk_forward_figures/{fold}/main_{cumulative_returns,drawdown}.png`
+  (본문용, MLP+Transformer+벤치마크 4종 통합), `{policy}_*.png`(부록용,
+  정책별 상세 + target allocation + seed 이질성 range plot). quantstats
+  HTML은 대표 seed 1개짜리 참고용 tearsheet이며 본문 수치의 근거가 아님
+  (`experiments/walk_forward_visualizations.py`로 재생성 가능)

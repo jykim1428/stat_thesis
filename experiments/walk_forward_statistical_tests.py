@@ -141,30 +141,55 @@ def sharpe_diff_statistic(ppo_returns: np.ndarray, bench_returns: np.ndarray) ->
     return sharpe(ppo_returns) - sharpe(bench_returns)
 
 
-def one_seed_bootstrap_distribution(
-    ppo_returns: pd.Series, bench_returns: pd.Series, block_size: int, seed: int
-) -> np.ndarray:
-    """한 PPO seed에 대해, 페어링된 (PPO, benchmark) returns를 함께 block
-    bootstrap 리샘플해서 Sharpe 차이 통계량의 리샘플 분포(reps개)를 반환.
+def mean_seed_sharpe_diff_statistic(*arrays: np.ndarray) -> float:
+    """arrays = (ppo_seed1, ppo_seed2, ..., ppo_seedN, bench) 순서.
 
-    StationaryBootstrap에 두 시계열을 함께 넣으면 매 리샘플마다 동일한
-    블록 인덱스로 두 시계열을 같이 뽑는다 - 그래야 같은 시점의 시장
-    충격 상관관계가 리샘플 후에도 보존된다 (따로따로 리샘플하면 이
-    상관관계가 깨져서 분산이 부풀려짐).
+    매 bootstrap replicate에서 이 함수가 호출되며, 그 시점에 6개 시계열이
+    전부 "동일한" 블록 인덱스로 함께 리샘플된 상태다. 여기서 계산하는
+    mean_seed[Sharpe(PPO_seed) - Sharpe(bench)]가 바로 우리가 추정하려는
+    모수(5-seed 평균 효과)의 추정량이므로, 이 값의 replicate별 분포가
+    올바른 표본분포다.
     """
-    common_idx = ppo_returns.index.intersection(bench_returns.index)
-    ppo_arr = ppo_returns.loc[common_idx].to_numpy()
-    bench_arr = bench_returns.loc[common_idx].to_numpy()
+    bench_arr = arrays[-1]
+    ppo_arrays = arrays[:-1]
+    bench_sharpe = sharpe(bench_arr)
+    diffs = [sharpe(ppo_arr) - bench_sharpe for ppo_arr in ppo_arrays]
+    return float(np.mean(diffs))
 
-    bs = StationaryBootstrap(block_size, ppo_arr, bench_arr, seed=seed)
-    dist = bs.apply(sharpe_diff_statistic, reps=N_BOOTSTRAP_REPS)
+
+def multi_seed_bootstrap_distribution(
+    seed_ppo_returns: dict[int, pd.Series], bench_returns: pd.Series, block_size: int, seeds: list[int], rng_seed: int
+) -> np.ndarray:
+    """PPO 5-seed + benchmark, 총 6개 시계열을 함께 block bootstrap 리샘플한다.
+
+    2026-09-08 리뷰 - Major #2 수정: 이전 구현은 seed마다 "독립적으로"
+    bootstrap을 돌려 그 리샘플 분포들을 단순히 이어붙였다. 이건
+    "seed 하나만 있었다면 나왔을 결과"의 분포에 가깝고, 우리가 실제로
+    추정해야 하는 "5-seed 평균 효과"의 표본분포가 아니다 (시뮬레이션
+    검증: 잘못된 방식은 CI 폭을 약 sqrt(5)배 부풀림).
+
+    StationaryBootstrap에 6개 시계열을 한꺼번에 넣으면 매 replicate에서
+    "동일한" 블록 인덱스로 6개를 같이 리샘플한다 - 같은 시점의 시장
+    충격 상관관계(PPO 5-seed끼리도, PPO와 벤치마크 사이도)가 보존된
+    채로, mean_seed[Sharpe(PPO_seed)-Sharpe(bench)]라는 통계량 자체의
+    표본분포를 얻는다.
+    """
+    common_idx = bench_returns.index
+    for seed in seeds:
+        common_idx = common_idx.intersection(seed_ppo_returns[seed].index)
+
+    arrays = [seed_ppo_returns[seed].loc[common_idx].to_numpy() for seed in seeds]
+    arrays.append(bench_returns.loc[common_idx].to_numpy())
+
+    bs = StationaryBootstrap(block_size, *arrays, seed=rng_seed)
+    dist = bs.apply(mean_seed_sharpe_diff_statistic, reps=N_BOOTSTRAP_REPS)
     return dist.flatten()
 
 
-def pooled_ci_and_pvalue(pooled_dist: np.ndarray, point_estimate: float) -> dict:
-    ci_low, ci_high = np.percentile(pooled_dist, [(1 - CI_LEVEL) / 2 * 100, (1 + CI_LEVEL) / 2 * 100])
-    p_below = float((pooled_dist <= 0).mean())
-    p_above = float((pooled_dist >= 0).mean())
+def ci_and_pvalue(dist: np.ndarray, point_estimate: float) -> dict:
+    ci_low, ci_high = np.percentile(dist, [(1 - CI_LEVEL) / 2 * 100, (1 + CI_LEVEL) / 2 * 100])
+    p_below = float((dist <= 0).mean())
+    p_above = float((dist >= 0).mean())
     p_value = float(min(1.0, 2 * min(p_below, p_above)))
     return {
         "point_estimate": float(point_estimate),
@@ -221,12 +246,10 @@ def compute_ppo_vs_benchmark(locked: dict) -> list[dict]:
 
                 block_size_results = {}
                 for block_size in BLOCK_SIZES:
-                    pooled = [
-                        one_seed_bootstrap_distribution(seed_ppo_returns[seed], bench_net_returns, block_size, seed)
-                        for seed in seeds
-                    ]
-                    pooled_dist = np.concatenate(pooled)
-                    block_size_results[block_size] = pooled_ci_and_pvalue(pooled_dist, mean_point)
+                    dist = multi_seed_bootstrap_distribution(
+                        seed_ppo_returns, bench_net_returns, block_size, seeds, rng_seed=hash(bench_strategy) % (2**31)
+                    )
+                    block_size_results[block_size] = ci_and_pvalue(dist, mean_point)
 
                 primary = block_size_results[PRIMARY_BLOCK_SIZE]
                 results.append({
