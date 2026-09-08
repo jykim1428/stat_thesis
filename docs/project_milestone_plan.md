@@ -201,13 +201,18 @@
 - [x] **🚩 모든 숫자 freeze** — 11월엔 이 숫자로만 씀
 - **산출물:** `results/frozen_summaries/manifest.json` + 확정 성능 매트릭스
 - **완료 (2026-09-08):** `experiments/walk_forward_freeze_manifest.py`로
-  생성. commit `95ad5f2` 기준, PPO backtest 20개 + model.zip 20개 +
-  벤치마크 8개 + frozen_summaries 12개 전부 SHA-256 기록. Python 3.13.7,
-  torch 2.13.0, scipy 1.18.0(arch 설치로 1.16.3에서 자동 업그레이드,
-  requirements.txt 갱신) 등 패키지 버전 고정. cost_rate=0.001,
-  periods_per_year=8760, Fold2 실제 데이터 종료(2025-12-31 00:00), 3→5
-  seed post-hoc 확장 이력과 원본 3-seed 보존 위치, bootstrap 설정
-  (block=24/168, reps=2000, pooling 정의) 전부 포함. 이 시점 이후
+  생성. source_commit_sha `10892a1`(숫자·코드가 확정된 커밋 — manifest.json
+  자체는 이 커밋에는 없고 다음 커밋에 저장됨. "commit X 기준 freeze"를
+  "X를 checkout하면 manifest도 있다"로 오독하지 않도록 source_commit_sha/
+  manifest_commit_note로 구분해 기록함, 2026-09-08 리뷰 반영) 기준,
+  PPO backtest 20개 + model.zip 20개 + 벤치마크 8개 + frozen_summaries
+  12개 + 원천 DB 1개, 총 61개 SHA-256 기록. Python 3.13.7, torch 2.13.0,
+  scipy 1.18.0(arch 설치로 1.16.3에서 자동 업그레이드, requirements.txt
+  갱신) 등 패키지 버전 고정. cost_rate=0.001, periods_per_year=8760,
+  Fold2 실제 데이터 종료(2025-12-31 00:00), 3→5 seed post-hoc 확장
+  이력과 원본 3-seed 보존 위치, bootstrap 설정(block=24/168, reps=2000,
+  6-시계열 공동 리샘플 pooling 정의, SHA-256 기반 결정론적 rng seed
+  파생) 전부 포함. 이 시점 이후
   숫자·설정 재조정 금지 — 11월엔 이 manifest 기준으로만 논문 작성.
 
 ### 10월 4주차 — 인수인계 + 버퍼

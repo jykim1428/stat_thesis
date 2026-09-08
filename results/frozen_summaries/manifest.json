@@ -1,8 +1,9 @@
 {
-  "generated_at_utc": "2026-09-08T01:38:24.284842+00:00",
+  "generated_at_utc": "2026-09-08T02:50:31.749854+00:00",
   "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
   "git": {
-    "commit_sha": "95ad5f277353c86cc90c49bbcea580e812a153d5",
+    "source_commit_sha": "10892a1b65a5454a43e7e90f5c79d063b8d359a7",
+    "manifest_commit_note": "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. git log --follow results/frozen_summaries/manifest.json 으로 확인 가능.",
     "worktree_clean": false,
     "untracked_or_modified": [
       "?? data/raw/",
@@ -414,7 +415,7 @@
     "mlp_fold1_search_summary.csv": "4524d32cd65a72506721158065c4f7f0b4084dfdd92db0bf215b0ee1741042c5",
     "mlp_fold2_final_summary.csv": "071b19b901563a1955f62c1ee0298fd169ada6433f04bf4bb896bcb7b4a5600e",
     "mlp_fold2_final_summary_3seed_original.csv": "30c73090ecd04796064fd3dc58367c2a083b9d6fdfc4c5a1cabfab43e3b4335d",
-    "statistical_tests.json": "bf1e001815bf7904bb7b843cc57f29cd662ae68bf9e19dc67ac2ca70a42e1592",
+    "statistical_tests.json": "e1532f7c08350f8e9433bd08bef65b902e5d4b267c59f99bf62ff3e76fda7a2d",
     "transformer_fold1_final_summary.csv": "54dd46f98fb864a70df3c91cd293de6a0b0dab148655b6276d5a1d855b3a3985",
     "transformer_fold1_final_summary_3seed_original.csv": "8ed8d5a33a7f0b198b47009f3719f604e8bd7bff822366d35f8f89a11b1ab7e1",
     "transformer_fold1_search_summary.csv": "c60a00e223136999479d55efd53606b8033ef8272a1a0e9708e9be39b1e35231",
