@@ -48,3 +48,7 @@ results/walk_forward/
 results/walk_forward_benchmarks/
 results/walk_forward_behavior_diagnostics/
 results/walk_forward_statistical_tests/
+
+# 10월 2주차: quantstats tearsheet HTML만 제외 (재생성 가능, 각 2~3MB) -
+# PNG 그림(누적수익률/drawdown/target allocation)은 논문용 자료라 추적함
+results/walk_forward_figures/**/*.html
