@@ -108,33 +108,37 @@
 
 ### 9월 1주차 — 커스텀 트랜스포머 정책망 구현
 
-- [ ] SB3 `BaseFeaturesExtractor` 상속해서 트랜스포머 인코더 작성
-- [ ] observation을 `(batch, lookback, feature_dim)`으로 reshape (env shape 기준)
-- [ ] lookback window 하이퍼파라미터로 노출 (예: 50~168h)
-- [ ] **작게 시작**: 2 layer / 2~4 head (파라미터 많으면 이 데이터 크기에서 오버피팅 직행)
+- [x] SB3 `BaseFeaturesExtractor` 상속해서 트랜스포머 인코더 작성
+- [x] observation을 `(batch, lookback, feature_dim)`으로 reshape (env shape 기준)
+- [x] lookback window 하이퍼파라미터로 노출 (예: 50~168h)
+- [x] **작게 시작**: 2 layer / 2~4 head (파라미터 많으면 이 데이터 크기에서 오버피팅 직행)
 - **산출물:** 돌아가는 트랜스포머 extractor
 
 ### 9월 2주차 — 트랜스포머 학습 안정화 (디버깅 주간)
 
-- [ ] `policy_kwargs`로 끼워서 PPO 학습 시도
-- [ ] 학습 붕괴/NaN/entropy collapse 디버깅 (gradient clip, lr 조정, 정규화)
-- [ ] 스케일링은 이 단계에서 **train-only fit** 적용
-- [ ] 오버피팅 조짐 모니터링 (train↑ val↓)
+- [x] `policy_kwargs`로 끼워서 PPO 학습 시도
+- [x] 학습 붕괴/NaN/entropy collapse 디버깅 (gradient clip, lr 조정, 정규화)
+- [x] 스케일링은 이 단계에서 **train-only fit** 적용
+- [x] 오버피팅 조짐 모니터링 (train↑ val↓)
 - **산출물:** 안정적으로 수렴하는 트랜스포머 PPO 1개
 - ⚠️ **버퍼 지점:** 여기가 늘어지면 7월에 벌어둔 여유로 흡수. 3주차로 넘어가되 병렬 진행.
 
 ### 9월 3주차 — LSTM 정책망 (비교군)
 
-- [ ] 같은 방식으로 LSTM feature extractor 구현
-- [ ] 트랜스포머와 동일 조건(피처·lookback·평가)으로 세팅 → 공정 비교 담보
+- [x] 같은 방식으로 LSTM feature extractor 구현
+- [x] 트랜스포머와 동일 조건(피처·lookback·평가)으로 세팅 → 공정 비교 담보
 - **산출물:** LSTM 정책망 → 삼자비교(MLP/LSTM/Transformer) 성립
 
 ### 9월 4주차 — 실험 자동화 셋업
 
-- [ ] 모델 × 국면 × 시드 조합을 스크립트로 일괄 실행되게 오케스트레이션
-- [ ] Optuna 탐색 파이프라인 준비 (lr·gamma·batch size, **val 기준만**)
-- [ ] Walk-forward validation 세팅
-- [ ] Colab 컴퓨트 예산 점검 (10월 대량 실행 대비)
+- [x] 모델 × 국면 × 시드 조합을 스크립트로 일괄 실행되게 오케스트레이션
+- [ ] Optuna 탐색 파이프라인 준비 (lr·gamma·batch size, **val 기준만**) —
+      **미구현, 의도적 범위 제외.** 4개 후보 수동 탐색(`MLP_CANDIDATES`/
+      `TRANSFORMER_CANDIDATES`)으로 대체. 10월 계획에서 "OOS 확인 후
+      Optuna 재개는 탐색 자체를 오염시킨다"는 이유로 이번 사이클에서는
+      하지 않기로 확정(Future Work로 이동, 새 holdout 생길 때만 진행)
+- [x] Walk-forward validation 세팅
+- [x] Colab 컴퓨트 예산 점검 (10월 대량 실행 대비)
 - **산출물:** "버튼 하나로 전체 실험" 스크립트
 - **병행:** 논문 관련연구(Related Work) 섹션 초안 완성
 
@@ -167,30 +171,30 @@
 
 ### 10월 1주차 — 통계 검정
 
-- [ ] PPO(seed 반복 있음) vs 전통 벤치마크(결정론적, 반복 없음) 비교의
+- [x] PPO(seed 반복 있음) vs 전통 벤치마크(결정론적, 반복 없음) 비교의
       통계적 엄밀성 확보: 같은 시간 인덱스의 PPO-벤치마크 수익률 차이를
       moving/stationary block bootstrap으로 리샘플해 Sharpe 차이의 신뢰
       구간을 계산 (비교가 여러 개면 Holm 보정 병행). OOS 국면이 2개뿐이라
       "모든 시장 국면에 일반화된다"는 검정은 하지 않는다 - 이 두 국면
       한정 결론임을 명시.
-- [ ] MLP vs Transformer paired seed 차이 CI 최종 확정 (2026-09-07
+- [x] MLP vs Transformer paired seed 차이 CI 최종 확정 (2026-09-07
       코덱스 3차 리뷰에서 이미 계산: Fold1 Transformer-MLP 0.0030
       [-0.0312, 0.0372], Fold2 -0.0278 [-0.0689, 0.0133] - 둘 다
       불확실성 안이라는 결론 유지되는지 재확인)
-- [ ] target_weights 행동 진단(정책이 사실상 고정된 목표비중을 출력,
+- [x] target_weights 행동 진단(정책이 사실상 고정된 목표비중을 출력,
       PPO-EW 수익률 상관 0.999+)을 논문 문장으로 정리
 - **산출물:** 통계 검증된 성능 매트릭스 + 신뢰구간
 
 ### 10월 2주차 — 시각화
 
-- [ ] 누적수익률 곡선(PPO 2종 + 벤치마크 4종 겹쳐서, net 기준 - gross
+- [x] 누적수익률 곡선(PPO 2종 + 벤치마크 4종 겹쳐서, net 기준 - gross
       아님, 2026-09-07 리뷰에서 gross/net 분리 완료)
-- [ ] 자산별 목표 비중(target_weights) 변화 Area chart - 사실상 flat
+- [x] 자산별 목표 비중(target_weights) 변화 Area chart - 사실상 flat
       line이라는 사실 자체가 시각적 증거가 되므로 그대로 보여줄 것
-- [ ] Drawdown 곡선
-- [ ] 국면별 성능표 (Fold1/Fold2 별도 유지, 단순 평균 금지 -
+- [x] Drawdown 곡선
+- [x] 국면별 성능표 (Fold1/Fold2 별도 유지, 단순 평균 금지 -
       docs/walk_forward_design.md 원칙)
-- [ ] quantstats 리포트 자동 생성
+- [x] quantstats 리포트 자동 생성
 - **산출물:** 논문용 그림·표 전체
 
 ### 10월 3주차 — 결과 동결 (freeze)
