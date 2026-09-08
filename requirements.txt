@@ -32,7 +32,7 @@ wandb==0.28.1
 tensorboard==2.21.0
 
 # 8월 4주차: 전통 벤치마크 (Markowitz, Risk Parity ERC) 의존성
-scipy==1.16.3
+scipy==1.18.0  # 10월 1주차: arch(StationaryBootstrap) 설치 시 1.16.3에서 자동 업그레이드됨
 PyPortfolioOpt==1.6.0
 
 # 8월 2~3주차: 공용 평가 모듈 (evaluate.py 의존성)
