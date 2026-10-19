@@ -83,6 +83,8 @@ TIC_ORDER_WITH_CASH = ["CASH", "ADA", "AVAX", "BNB", "BTC", "DOGE", "ETH", "SOL"
 N_ASSETS = 8  # 현금 제외
 
 DD_THRESHOLD = 0.15  # 15% 이상 낙폭만 "주요 낙폭 구간"으로 집계
+COST_RATE = 0.001  # evaluate.py / manifest와 동일 (편도 0.1%)
+PERIODS_PER_YEAR = 24 * 365  # tracking error 연율화용 (evaluate.py와 동일)
 
 
 def load_locked_candidates() -> dict:
@@ -95,6 +97,20 @@ def load_backtest(path: str) -> pd.DataFrame:
     df["weights"] = df["weights"].apply(ast.literal_eval)
     df["target_weights"] = df["target_weights"].apply(ast.literal_eval)
     return df
+
+
+def net_returns_from_backtest(df: pd.DataFrame) -> pd.Series:
+    """거래비용 차감 후(net) 수익률. evaluate.py와 동일한 turnover 정의를 쓴다.
+
+    2026-10-19 리뷰 반영: 이전 구현은 df["returns"](gross)를 그대로 써서
+    상관계수/낙폭을 계산했는데, 논문 본문은 net 기준으로 서술하므로
+    진단도 net으로 맞춘다.
+    """
+    W = np.vstack(df["weights"].to_numpy())
+    TW = np.vstack(df["target_weights"].to_numpy())
+    turnover = np.zeros(len(df))
+    turnover[1:] = np.abs(TW[1:] - W[:-1]).sum(axis=1) / 2.0
+    return df["returns"] - turnover * COST_RATE
 
 
 def herfindahl(w: np.ndarray) -> float:
@@ -142,13 +158,18 @@ def diagnose_one_run(path: str, ew_returns: pd.Series | None) -> dict:
 
     turnover = np.abs(TW[1:] - W[:-1]).sum(axis=1) / 2.0  # evaluate.py와 동일 정의
 
-    values = df["portfolio_values"].to_numpy()
+    # 낙폭은 net 수익률 누적 경로 기준 (2026-10-19 리뷰: 이전엔 gross
+    # portfolio_values를 썼는데 본문 성과지표는 net 기준이라 불일치했음)
+    net_r = net_returns_from_backtest(df)
+    values = (1.0 + net_r).cumprod().to_numpy()
     peak = np.maximum.accumulate(values)
     dd = (values - peak) / peak
     dd_periods = find_drawdown_periods(values, df.index.tolist(), DD_THRESHOLD)
 
     # target_weights 기준 행동 분석 (정책이 실제로 "하려 한" 것)
-    target_step_change = np.abs(np.diff(TW, axis=0))
+    # 시점별 L1 변화량(행별 합). 2026-10-19 리뷰: 이전엔 성분별 절댓값의
+    # 원소 평균/최댓값이라 "시점별 변화량의 평균"이라는 서술과 달랐음
+    target_step_change = np.abs(np.diff(TW, axis=0)).sum(axis=1)
     target_range = TW.max(axis=0) - TW.min(axis=0)  # 자산별 전체 구간 변동폭
     target_cash = TW[:, 0]
     target_cash_dd_corr = float(np.corrcoef(target_cash, dd)[0, 1])
@@ -173,10 +194,11 @@ def diagnose_one_run(path: str, ew_returns: pd.Series | None) -> dict:
 
     if ew_returns is not None:
         common_idx = df.index.intersection(ew_returns.index)
-        ppo_r = df.loc[common_idx, "returns"]
-        ew_r = ew_returns.loc[common_idx]
+        ppo_r = net_r.loc[common_idx]          # net 기준 (리뷰 반영)
+        ew_r = ew_returns.loc[common_idx]      # 벤치마크도 net
         corr = float(np.corrcoef(ppo_r, ew_r)[0, 1])
-        tracking_error = float((ppo_r - ew_r).std())
+        # 연율화 tracking error: 시간당 차이의 표본표준편차(ddof=1) x sqrt(8760)
+        tracking_error = float((ppo_r - ew_r).std(ddof=1) * np.sqrt(PERIODS_PER_YEAR))
         result["ppo_ew_return_correlation"] = corr
         result["ppo_ew_tracking_error"] = tracking_error
 
@@ -184,11 +206,19 @@ def diagnose_one_run(path: str, ew_returns: pd.Series | None) -> dict:
 
 
 def load_ew_returns(benchmark_fold_dir: str) -> pd.Series | None:
+    """Equal-Weight 벤치마크의 net returns.
+
+    2026-10-19 리뷰 반영: 이전엔 CSV의 returns(gross)를 그대로 반환해
+    PPO(net)와 기준이 달랐다. 벤치마크 CSV에도 weights/target_weights가
+    있으므로 PPO와 동일한 방식으로 비용을 차감한다.
+    """
     path = os.path.join(benchmark_fold_dir, "equal_weight.csv")
     if not os.path.exists(path):
         return None
     df = pd.read_csv(path, index_col="date", parse_dates=True)
-    return df["returns"]
+    df["weights"] = df["weights"].apply(ast.literal_eval)
+    df["target_weights"] = df["target_weights"].apply(ast.literal_eval)
+    return net_returns_from_backtest(df)
 
 
 def diagnose_policy_fold(policy: str, fold: str, candidate: str, seeds: list[int], ew_returns: pd.Series | None) -> dict:
