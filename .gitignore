@@ -57,3 +57,7 @@ results/walk_forward_figures/**/*.html
 obsidian/.obsidian/workspace.json
 obsidian/.obsidian/appearance.json
 obsidian/.obsidian/core-plugins.json
+
+# 준영 논문 원고 (로컬 관리, git 미추적)
+paper/ch3/
+obsidian/.obsidian/graph.json
