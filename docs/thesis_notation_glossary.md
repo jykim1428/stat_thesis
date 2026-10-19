@@ -5,9 +5,15 @@
 숫자 표기는 이 문서를 따른다.** 여기에 없는 용어가 필요하면 임의로 정하지
 말고 준영에게 확인한 뒤 이 문서에 추가한다.
 
-**근거:** 모든 값은 `results/frozen_summaries/manifest.json`
-(source_commit_sha `10892a1`) 및 `src/cryptoagent/envs/evaluate.py`,
-`env_portfolio_optimization.py`에서 직접 확인한 것이다.
+**근거:** 모든 값은 `results/frozen_summaries/manifest.json` 및
+`src/cryptoagent/envs/evaluate.py`, `env_portfolio_optimization.py`에서
+직접 확인한 것이다.
+
+> **동결 커밋과 명세 커밋은 다르다.** 학습 결과·성과지표·통계검정 수치가
+> 확정된 **실험 동결 커밋은 `10892a1`**(2026-09-08)이다. manifest의
+> `source_commit_sha`는 명세가 생성된 시점의 HEAD이므로, 사후 분석 코드가
+> 수정되면 갱신된다. manifest의 `freeze_lineage` 항목에서 두 값을 구분해
+> 확인할 수 있다.
 
 > 🚩 **동결 원칙**: 이 문서의 숫자는 2026-09-08 freeze된 값이다.
 > 표를 만들거나 본문을 쓰면서 스크립트를 재실행하거나 값을 재계산하지 말 것.
@@ -144,7 +150,7 @@ index: 0      1     2      3     4     5      6     7     8
   - t 시점 **목표 비중**과, 직전 스텝 종료 후의 **실제 비중**의 차이
   - t=0은 초기 진입이므로 turnover = 0
 - **금지된 정의:** `Σ|weights_t − weights_{t−1}|/2`
-  - 가격 변동으로 인한 비중 변화까지 거래량으로 오계상 → **약 1.2~1.45배 과대계상**
+  - 가격 변동으로 인한 비중 변화까지 거래량으로 오계상 → **약 1.22~1.46배 과대계상**
   - 본문에는 "왜 이 정의를 쓰는지"를 서술하되, "초기에 잘못 짰다가 고쳤다"는
     식으로 쓰지 말 것 (§7 참고)
 - **순수익률:** `net_return_t = gross_return_t − turnover_t × cost_rate`

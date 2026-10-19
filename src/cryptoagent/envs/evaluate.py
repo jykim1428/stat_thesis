@@ -57,7 +57,7 @@ def compute_turnover_from_weights(
     target_weights_col이 없을 때 allow_legacy_turnover=True로 명시하면
     구버전 근사(turnover[t] = sum(|weights[t] - weights[t-1]|) / 2)를 쓸 수
     있지만, 이 값은 가격 변동으로 인한 비중 변화까지 거래량으로 포함해
-    과대계상된다 (배수는 전략마다 다르며 실측상 약 1.2~1.45배). 과거 결과를
+    과대계상된다 (배수는 전략마다 다르며 실측상 약 1.22~1.46배). 과거 결과를
     참고할 때만 명시적으로 켤 것 - 기본값은 False라 target_weights가 없으면
     ValueError가 난다.
     """
@@ -122,7 +122,7 @@ def evaluate(
         target_weights 컬럼이 없을 때, weights끼리의 차이로 turnover를 근사하는
         구버전 방식을 명시적으로 허용할지 여부. 이 근사치는 가격 변동으로 인한
         비중 변화까지 거래량으로 잘못 포함해 실제보다 과대계상된다(배수는 전략마다
-        다름, 실측 약 1.2~1.45배). 과거 결과를 부득이 그대로 참고할 때만 True로 설정.
+        다름, 실측 약 1.22~1.46배). 과거 결과를 부득이 그대로 참고할 때만 True로 설정.
 
     Returns
     -------

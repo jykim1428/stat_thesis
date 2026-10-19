@@ -166,14 +166,32 @@ def collect_analysis_lineage() -> dict:
     """
     scripts = {}
     for path in ANALYSIS_SCRIPTS:
-        if os.path.exists(path):
-            scripts[path] = {
-                "sha256": sha256_of_file(path),
-                "last_commit": subprocess.run(
-                    ["git", "log", "-1", "--format=%H", "--", path],
-                    capture_output=True, text=True, check=True,
-                ).stdout.strip(),
-            }
+        if not os.path.exists(path):
+            continue
+        working_sha = sha256_of_file(path)
+        last_commit = subprocess.run(
+            ["git", "log", "-1", "--format=%H", "--", path],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        # last_commit 시점 파일의 체크섬. manifest는 커밋 "전"에 생성되므로,
+        # 방금 수정한 파일은 아직 커밋되지 않아 working_sha와 committed_sha가
+        # 다를 수 있다. 이 경우 "기록된 커밋을 checkout하면 체크섬이 맞는다"는
+        # 서술이 성립하지 않으므로 두 값을 모두 기록하고 일치 여부를 명시한다
+        # (2026-10-20 리뷰 - 우선순위 1).
+        committed = subprocess.run(
+            ["git", "show", f"{last_commit}:{path}"],
+            capture_output=True, check=False,
+        )
+        committed_sha = (
+            hashlib.sha256(committed.stdout).hexdigest()
+            if committed.returncode == 0 else None
+        )
+        scripts[path] = {
+            "sha256": working_sha,
+            "last_commit": last_commit,
+            "committed_sha256": committed_sha,
+            "uncommitted_changes": committed_sha is not None and committed_sha != working_sha,
+        }
     artifacts = {}
     for path in ANALYSIS_ARTIFACTS:
         if os.path.exists(path):
@@ -200,6 +218,24 @@ def main() -> None:
             "재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트)."
         ),
         "git": get_git_info(),
+        "freeze_lineage": {
+            "_comment": (
+                "실험 동결 커밋과 이 명세 작성 커밋은 다르다 (2026-10-20 리뷰). "
+                "experiment_freeze_commit은 학습 결과·성과지표·통계검정 수치가 "
+                "확정된 시점이고, git.source_commit_sha는 이 manifest가 생성된 "
+                "시점의 HEAD다. 사후 분석 코드 수정으로 후자만 갱신될 수 있다."
+            ),
+            "experiment_freeze_commit": "10892a1b65a5454a43e7e90f5c79d063b8d359a7",
+            "experiment_freeze_date": "2026-09-08",
+            "experiment_freeze_scope": (
+                "모형 가중치, 백테스트 산출물, 성과지표, 통계검정 결과. "
+                "이 범위의 수치는 이후 변경되지 않았다."
+            ),
+            "post_freeze_analysis_revisions": [
+                "2026-10-19: 행동 진단 코드 정의 수정 (L1 변화량, net 기준, "
+                "연율화 추적오차, 시드별 배분 저장) 후 진단만 재생성",
+            ],
+        },
         "package_versions": get_package_versions(),
         "evaluation_config": {
             "cost_rate": locked.get("cost_rate", 0.001),

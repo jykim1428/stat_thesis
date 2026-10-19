@@ -217,7 +217,7 @@ FinRL의 `PortfolioOptimizationEnv`를 벤더링해 본 연구 데이터에 연�
 | 순수익률 | `net_return_t = gross_return_t − turnover_t × cost_rate` |
 
 > turnover를 `Σ|weights_t − weights_{t−1}|/2`로 정의하면 가격 변동에 의한 비중
-> 변화까지 거래량으로 계상되어 거래비용이 약 1.2~1.45배 과대계상된다. 본 연구는
+> 변화까지 거래량으로 계상되어 거래비용이 약 1.22~1.46배 과대계상된다. 본 연구는
 > 정책이 실제로 지시한 리밸런싱량만 계상하는 위 정의를 사용한다.
 
 ---
