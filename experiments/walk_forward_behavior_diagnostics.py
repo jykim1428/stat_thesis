@@ -229,12 +229,24 @@ def diagnose_policy_fold(policy: str, fold: str, candidate: str, seeds: list[int
 
     avg_target_weights = np.mean([s["avg_target_weights"] for s in per_seed], axis=0)
 
+    # 시드 간 이질성 (2026-10-19 리뷰 반영): 3.6.5절 측정지표 ③.
+    # 이전엔 per_seed의 시간평균 배분을 평균내 버려서 "각 시드가 서로 다른
+    # 정적 배분을 학습했는가"를 확인할 수 있는 값이 저장되지 않았다.
+    seed_avg_matrix = np.array([s["avg_target_weights"] for s in per_seed])  # (S, 9)
+    seed_std_per_asset = seed_avg_matrix.std(axis=0, ddof=1)
+    seed_range_per_asset = seed_avg_matrix.max(axis=0) - seed_avg_matrix.min(axis=0)
+
     result = {
         "policy": policy,
         "fold": fold,
         "candidate": candidate,
         "n_seeds": len(seeds),
         "avg_target_weights": avg_target_weights.tolist(),
+        "seed_avg_target_weights": seed_avg_matrix.tolist(),
+        "seed_std_per_asset": seed_std_per_asset.tolist(),
+        "seed_range_per_asset": seed_range_per_asset.tolist(),
+        "seed_cash_min": float(seed_avg_matrix[:, 0].min()),
+        "seed_cash_max": float(seed_avg_matrix[:, 0].max()),
         "target_hhi_9": float(np.mean([s["target_hhi_9"] for s in per_seed])),
         "target_hhi_8assets": float(np.mean([s["target_hhi_8assets"] for s in per_seed])),
         "target_mean_step_change": float(np.mean([s["target_mean_step_change"] for s in per_seed])),

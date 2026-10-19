@@ -1,11 +1,15 @@
 {
-  "generated_at_utc": "2026-10-19T03:39:19.754034+00:00",
+  "generated_at_utc": "2026-10-19T06:06:26.975031+00:00",
   "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
   "git": {
-    "source_commit_sha": "6652a7826ce795310cd2e2033f3e6c77bc6ab99f",
+    "source_commit_sha": "8820d4c1900d22b75151cb648052d83a00fb802f",
     "manifest_commit_note": "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. git log --follow results/frozen_summaries/manifest.json 으로 확인 가능.",
     "worktree_clean": false,
     "untracked_or_modified": [
+      "M \"docs/assignments/\\354\\244\\200\\354\\230\\201_\\354\\247\\221\\355\\225\\204\\354\\262\\264\\355\\201\\254\\353\\246\\254\\354\\212\\244\\355\\212\\270.md\"",
+      " M docs/thesis_notation_glossary.md",
+      " M experiments/walk_forward_behavior_diagnostics.py",
+      " M \"obsidian/20-\\354\\213\\244\\355\\227\\230\\352\\262\\260\\352\\263\\274/\\354\\240\\225\\354\\261\\205 \\355\\226\\211\\353\\217\\231 \\354\\247\\204\\353\\213\\250.md\"",
       "?? data/raw/",
       "?? \"docs/dev_summary_9_10\\354\\233\\224_walkforward.md\"",
       "?? \"docs/dev_summary_\\354\\240\\204\\354\\262\\264_8\\354\\233\\224_10\\354\\233\\224.md\"",
