@@ -1,12 +1,14 @@
 {
-  "generated_at_utc": "2026-09-08T02:50:31.749854+00:00",
+  "generated_at_utc": "2026-10-19T03:39:19.754034+00:00",
   "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
   "git": {
-    "source_commit_sha": "10892a1b65a5454a43e7e90f5c79d063b8d359a7",
+    "source_commit_sha": "6652a7826ce795310cd2e2033f3e6c77bc6ab99f",
     "manifest_commit_note": "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. git log --follow results/frozen_summaries/manifest.json 으로 확인 가능.",
     "worktree_clean": false,
     "untracked_or_modified": [
       "?? data/raw/",
+      "?? \"docs/dev_summary_9_10\\354\\233\\224_walkforward.md\"",
+      "?? \"docs/dev_summary_\\354\\240\\204\\354\\262\\264_8\\354\\233\\224_10\\354\\233\\224.md\"",
       "?? docs/session_report_2026-08.md",
       "?? docs/weekly_report_2026-08-w1.md"
     ]
