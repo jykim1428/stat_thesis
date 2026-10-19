@@ -151,6 +151,16 @@ def load_net_returns(path: str, cost_rate: float) -> pd.Series:
 
 
 def sharpe(returns: np.ndarray) -> float:
+    """bootstrap 통계량용 Sharpe.
+
+    2026-10-19 리뷰 - Minor: np.std()의 기본값은 ddof=0이라 evaluate.py가
+    쓰는 empyrical(ddof=1)과 분모가 다르다. 실측 차이는 n=10,656에서
+    Sharpe 약 0.0001 수준이고, 검정통계량이 "PPO Sharpe - benchmark
+    Sharpe"의 차이라 양쪽에 동일한 스케일로 작용해 차이에 미치는 영향은
+    약 1e-6이다. 결론에 영향이 없고 재실행은 freeze 원칙에 어긋나므로
+    동결된 결과는 그대로 두되, 두 모듈의 Sharpe 정의가 문자 그대로
+    동일하지는 않다는 사실을 여기에 기록한다 (논문 3.6.2절 각주).
+    """
     std = returns.std()
     if std == 0 or not np.isfinite(std):
         return 0.0

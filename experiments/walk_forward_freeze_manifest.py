@@ -144,6 +144,51 @@ def collect_raw_input_manifest() -> dict:
     return {"crypto_market_features.db": sha256_of_file(db_path)}
 
 
+ANALYSIS_ARTIFACTS = [
+    "results/walk_forward_behavior_diagnostics/diagnostics.json",
+    "results/frozen_summaries/statistical_tests.json",
+]
+ANALYSIS_SCRIPTS = [
+    "experiments/walk_forward_behavior_diagnostics.py",
+    "experiments/walk_forward_statistical_tests.py",
+    "src/cryptoagent/envs/evaluate.py",
+]
+
+
+def collect_analysis_lineage() -> dict:
+    """사후 분석 코드와 그 산출물의 계보.
+
+    2026-10-19 리뷰 반영: 원시 실험 결과(동결 대상)와 사후 분석 산출물은
+    갱신 주기가 다르다. 분석 코드 정의가 수정되면 진단 결과만 재생성되므로,
+    "manifest의 source_commit_sha로 되돌리면 모든 산출물이 재현된다"는
+    서술이 성립하지 않게 된다. 분석 코드 버전과 그 산출물을 원시 실험
+    데이터와 분리해 별도로 고정한다.
+    """
+    scripts = {}
+    for path in ANALYSIS_SCRIPTS:
+        if os.path.exists(path):
+            scripts[path] = {
+                "sha256": sha256_of_file(path),
+                "last_commit": subprocess.run(
+                    ["git", "log", "-1", "--format=%H", "--", path],
+                    capture_output=True, text=True, check=True,
+                ).stdout.strip(),
+            }
+    artifacts = {}
+    for path in ANALYSIS_ARTIFACTS:
+        if os.path.exists(path):
+            artifacts[path] = {"sha256": sha256_of_file(path)}
+    return {
+        "_comment": (
+            "사후 분석(통계검정·행동진단) 코드와 산출물의 계보. 원시 실험 "
+            "결과(ppo_backtest_files 등)와 달리 분석 정의가 수정되면 "
+            "재생성된다. 재현 시 아래 last_commit의 코드를 사용할 것."
+        ),
+        "scripts": scripts,
+        "artifacts": artifacts,
+    }
+
+
 def main() -> None:
     with open(LOCKED_CANDIDATES_PATH) as f:
         locked = json.load(f)
@@ -197,6 +242,7 @@ def main() -> None:
         "benchmark_files": collect_benchmark_manifest(),
         "frozen_summary_files": collect_frozen_summaries_manifest(),
         "raw_input_files": collect_raw_input_manifest(),
+        "analysis_lineage": collect_analysis_lineage(),
     }
 
     os.makedirs(FROZEN_SUMMARIES_ROOT, exist_ok=True)

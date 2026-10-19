@@ -1,15 +1,14 @@
 {
-  "generated_at_utc": "2026-10-19T06:06:26.975031+00:00",
+  "generated_at_utc": "2026-10-19T06:52:40.452046+00:00",
   "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
   "git": {
-    "source_commit_sha": "8820d4c1900d22b75151cb648052d83a00fb802f",
+    "source_commit_sha": "ef83ba5e244255cd4258ed5017ab7b07550b4430",
     "manifest_commit_note": "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. git log --follow results/frozen_summaries/manifest.json 으로 확인 가능.",
     "worktree_clean": false,
     "untracked_or_modified": [
-      "M \"docs/assignments/\\354\\244\\200\\354\\230\\201_\\354\\247\\221\\355\\225\\204\\354\\262\\264\\355\\201\\254\\353\\246\\254\\354\\212\\244\\355\\212\\270.md\"",
-      " M docs/thesis_notation_glossary.md",
-      " M experiments/walk_forward_behavior_diagnostics.py",
-      " M \"obsidian/20-\\354\\213\\244\\355\\227\\230\\352\\262\\260\\352\\263\\274/\\354\\240\\225\\354\\261\\205 \\355\\226\\211\\353\\217\\231 \\354\\247\\204\\353\\213\\250.md\"",
+      "M experiments/walk_forward_freeze_manifest.py",
+      " M experiments/walk_forward_statistical_tests.py",
+      " M results/frozen_summaries/manifest.json",
       "?? data/raw/",
       "?? \"docs/dev_summary_9_10\\354\\233\\224_walkforward.md\"",
       "?? \"docs/dev_summary_\\354\\240\\204\\354\\262\\264_8\\354\\233\\224_10\\354\\233\\224.md\"",
@@ -430,5 +429,30 @@
   },
   "raw_input_files": {
     "crypto_market_features.db": "7c5a6436d97f4b6f8b42a8f82b942b40e27003d0e4d7bfe10003ced54acc05dd"
+  },
+  "analysis_lineage": {
+    "_comment": "사후 분석(통계검정·행동진단) 코드와 산출물의 계보. 원시 실험 결과(ppo_backtest_files 등)와 달리 분석 정의가 수정되면 재생성된다. 재현 시 아래 last_commit의 코드를 사용할 것.",
+    "scripts": {
+      "experiments/walk_forward_behavior_diagnostics.py": {
+        "sha256": "c9db0ed5a6759728f46c618188ca3d055fce537e12fab626385aa15577f9ae60",
+        "last_commit": "ef83ba5e244255cd4258ed5017ab7b07550b4430"
+      },
+      "experiments/walk_forward_statistical_tests.py": {
+        "sha256": "045b9115c574ec226ccc0e4c9df882adbbb65979020b14a2ef62effca252357c",
+        "last_commit": "10892a1b65a5454a43e7e90f5c79d063b8d359a7"
+      },
+      "src/cryptoagent/envs/evaluate.py": {
+        "sha256": "30d4465f7d811618fc3ffe6ad0599b5494ecbf93d40abf44b71d517c63c2ff17",
+        "last_commit": "9e3a57e66f39b0909624159f8d67db4a540ac57b"
+      }
+    },
+    "artifacts": {
+      "results/walk_forward_behavior_diagnostics/diagnostics.json": {
+        "sha256": "d2fc2ca919fe02119e887c056dd4d853a44e78f825921fce5c0c32222a7de5d4"
+      },
+      "results/frozen_summaries/statistical_tests.json": {
+        "sha256": "e1532f7c08350f8e9433bd08bef65b902e5d4b267c59f99bf62ff3e76fda7a2d"
+      }
+    }
   }
 }
