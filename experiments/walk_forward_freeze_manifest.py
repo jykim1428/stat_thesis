@@ -285,11 +285,29 @@ def main() -> None:
     with open(OUTPUT_PATH, "w") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
+    # 계보 자체 점검: 분석 스크립트에 미커밋 변경이 있으면 "기록된 커밋을
+    # checkout하면 체크섬이 맞는다"는 3.7.6의 서술이 성립하지 않는다.
+    # manifest는 커밋 전에 생성되므로 이 경고가 뜨면 커밋 후 재생성해야 한다
+    # (2026-10-21 리뷰 - evaluate.py에서 실제로 발생).
+    dirty = [
+        path for path, info in manifest["analysis_lineage"]["scripts"].items()
+        if info.get("uncommitted_changes")
+    ]
+
     print(f"Manifest 저장: {OUTPUT_PATH}")
     print(f"  source_commit_sha: {manifest['git']['source_commit_sha']}")
     print(f"  worktree_clean: {manifest['git']['worktree_clean']}")
     if not manifest["git"]["worktree_clean"]:
         print(f"  untracked/modified: {manifest['git']['untracked_or_modified']}")
+
+    if dirty:
+        print()
+        print("  [경고] 아래 분석 스크립트에 미커밋 변경이 있어 계보가 불완전합니다.")
+        for path in dirty:
+            print(f"    - {path}")
+        print("  → 변경을 커밋한 뒤 이 스크립트를 다시 실행해 manifest를 확정하세요.")
+    else:
+        print("  분석 계보: 모든 스크립트가 기록된 커밋과 일치")
     print(f"  PPO backtest 파일 수: {len(manifest['ppo_backtest_files'])}")
     print(f"  벤치마크 파일 수: {len(manifest['benchmark_files'])}")
 

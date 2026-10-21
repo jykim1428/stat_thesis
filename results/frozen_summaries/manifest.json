@@ -1,20 +1,13 @@
 {
-  "generated_at_utc": "2026-10-19T22:31:34.208841+00:00",
+  "generated_at_utc": "2026-10-21T00:49:04.760801+00:00",
   "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
   "git": {
-    "source_commit_sha": "d57acf6598b1c8852c78d4bfe33ce36139b36dd9",
+    "source_commit_sha": "99d4f8c4860c30c0810e0130be5befd72b499495",
     "manifest_commit_note": "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. git log --follow results/frozen_summaries/manifest.json 으로 확인 가능.",
     "worktree_clean": false,
     "untracked_or_modified": [
-      "M \"docs/assignments/\\354\\244\\200\\354\\230\\201_\\354\\247\\221\\355\\225\\204\\354\\262\\264\\355\\201\\254\\353\\246\\254\\354\\212\\244\\355\\212\\270.md\"",
-      " M docs/thesis_notation_glossary.md",
-      " M docs/thesis_submission_form_full.md",
-      " M experiments/walk_forward_freeze_manifest.py",
-      " M \"obsidian/10-\\354\\227\\260\\352\\265\\254\\354\\204\\244\\352\\263\\204/\\352\\260\\225\\355\\231\\224\\355\\225\\231\\354\\212\\265 \\355\\231\\230\\352\\262\\275 \\354\\212\\244\\355\\216\\231.md\"",
-      " M \"obsidian/30-\\354\\247\\221\\355\\225\\204/\\354\\247\\221\\355\\225\\204 \\352\\270\\210\\354\\247\\200\\354\\202\\254\\355\\225\\255.md\"",
-      " M \"obsidian/50-\\354\\235\\230\\354\\202\\254\\352\\262\\260\\354\\240\\225/\\352\\262\\260\\354\\240\\225 \\353\\241\\234\\352\\267\\270.md\"",
+      "M experiments/walk_forward_freeze_manifest.py",
       " M results/frozen_summaries/manifest.json",
-      " M src/cryptoagent/envs/evaluate.py",
       "?? data/raw/",
       "?? \"docs/dev_summary_9_10\\354\\233\\224_walkforward.md\"",
       "?? \"docs/dev_summary_\\354\\240\\204\\354\\262\\264_8\\354\\233\\224_10\\354\\233\\224.md\"",
@@ -462,9 +455,9 @@
       },
       "src/cryptoagent/envs/evaluate.py": {
         "sha256": "67d5665f6f025c313525b8679e9f029d4d232f91260ac750b4c6c7bc8cc79110",
-        "last_commit": "9e3a57e66f39b0909624159f8d67db4a540ac57b",
-        "committed_sha256": "30d4465f7d811618fc3ffe6ad0599b5494ecbf93d40abf44b71d517c63c2ff17",
-        "uncommitted_changes": true
+        "last_commit": "99d4f8c4860c30c0810e0130be5befd72b499495",
+        "committed_sha256": "67d5665f6f025c313525b8679e9f029d4d232f91260ac750b4c6c7bc8cc79110",
+        "uncommitted_changes": false
       }
     },
     "artifacts": {
