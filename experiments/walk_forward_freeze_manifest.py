@@ -211,8 +211,13 @@ def collect_analysis_lineage() -> dict:
         }
     artifacts = {}
     for path in ANALYSIS_ARTIFACTS:
-        if os.path.exists(path):
-            artifacts[path] = {"sha256": sha256_of_file(path)}
+        # 스크립트와 동일하게, 누락을 조용히 건너뛰면 "누락은 전부 실패"라는
+        # 안전장치 설명이 성립하지 않는다 (2026-10-21 리뷰 - 경계 사례).
+        if not os.path.exists(path):
+            problems.append(f"{path}: 분석 산출물이 존재하지 않음")
+            artifacts[path] = {"error": "missing_artifact"}
+            continue
+        artifacts[path] = {"sha256": sha256_of_file(path)}
     return {
         "_lineage_problems": problems,
         "_comment": (
