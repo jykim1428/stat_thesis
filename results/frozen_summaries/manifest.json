@@ -1,13 +1,12 @@
 {
-  "generated_at_utc": "2026-10-21T06:57:31.951534+00:00",
+  "generated_at_utc": "2026-10-21T07:00:57.160103+00:00",
   "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
   "git": {
-    "source_commit_sha": "87fb2ec7077305a5dcb54d2bb302514495c17fe9",
+    "source_commit_sha": "0fd2c626f3d7fba648586f82bb86b9b8d73d5f62",
     "manifest_commit_note": "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. git log --follow results/frozen_summaries/manifest.json 으로 확인 가능.",
     "worktree_clean": false,
     "untracked_or_modified": [
-      "M experiments/walk_forward_freeze_manifest.py",
-      " M results/frozen_summaries/manifest.json",
+      "M results/frozen_summaries/manifest.json",
       "?? data/raw/",
       "?? \"docs/dev_summary_9_10\\354\\233\\224_walkforward.md\"",
       "?? \"docs/dev_summary_\\354\\240\\204\\354\\262\\264_8\\354\\233\\224_10\\354\\233\\224.md\"",
