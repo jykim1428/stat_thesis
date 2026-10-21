@@ -1,8 +1,8 @@
 {
-  "generated_at_utc": "2026-10-21T00:49:04.760801+00:00",
+  "generated_at_utc": "2026-10-21T03:37:04.202628+00:00",
   "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
   "git": {
-    "source_commit_sha": "99d4f8c4860c30c0810e0130be5befd72b499495",
+    "source_commit_sha": "2f4a492b4f45731860f6657e3b540c4853687f86",
     "manifest_commit_note": "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. git log --follow results/frozen_summaries/manifest.json 으로 확인 가능.",
     "worktree_clean": false,
     "untracked_or_modified": [
@@ -439,6 +439,7 @@
     "crypto_market_features.db": "7c5a6436d97f4b6f8b42a8f82b942b40e27003d0e4d7bfe10003ced54acc05dd"
   },
   "analysis_lineage": {
+    "_lineage_problems": [],
     "_comment": "사후 분석(통계검정·행동진단) 코드와 산출물의 계보. 원시 실험 결과(ppo_backtest_files 등)와 달리 분석 정의가 수정되면 재생성된다. 재현 시 아래 last_commit의 코드를 사용할 것.",
     "scripts": {
       "experiments/walk_forward_behavior_diagnostics.py": {

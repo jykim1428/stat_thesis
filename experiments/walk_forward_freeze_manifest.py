@@ -165,14 +165,26 @@ def collect_analysis_lineage() -> dict:
     데이터와 분리해 별도로 고정한다.
     """
     scripts = {}
+    problems = []
     for path in ANALYSIS_SCRIPTS:
+        # 누락·조회 실패를 조용히 넘기면 아래 계보 점검이 "이상 없음"으로
+        # 잘못 보고된다. 안전장치로 쓰려면 확인할 수 없는 상태를 정상으로
+        # 간주해서는 안 되므로, 각 실패를 problems에 모아 호출부에서
+        # 비정상 종료시킨다 (2026-10-21 리뷰).
         if not os.path.exists(path):
+            problems.append(f"{path}: 파일이 존재하지 않음")
+            scripts[path] = {"error": "missing_file"}
             continue
         working_sha = sha256_of_file(path)
-        last_commit = subprocess.run(
+        log = subprocess.run(
             ["git", "log", "-1", "--format=%H", "--", path],
-            capture_output=True, text=True, check=True,
-        ).stdout.strip()
+            capture_output=True, text=True, check=False,
+        )
+        last_commit = log.stdout.strip()
+        if log.returncode != 0 or not last_commit:
+            problems.append(f"{path}: git log 조회 실패 (커밋 이력 없음)")
+            scripts[path] = {"sha256": working_sha, "error": "no_commit_history"}
+            continue
         # last_commit 시점 파일의 체크섬. manifest는 커밋 "전"에 생성되므로,
         # 방금 수정한 파일은 아직 커밋되지 않아 working_sha와 committed_sha가
         # 다를 수 있다. 이 경우 "기록된 커밋을 checkout하면 체크섬이 맞는다"는
@@ -182,21 +194,27 @@ def collect_analysis_lineage() -> dict:
             ["git", "show", f"{last_commit}:{path}"],
             capture_output=True, check=False,
         )
-        committed_sha = (
-            hashlib.sha256(committed.stdout).hexdigest()
-            if committed.returncode == 0 else None
-        )
+        if committed.returncode != 0:
+            problems.append(f"{path}: {last_commit[:7]}에서 파일을 꺼낼 수 없음")
+            scripts[path] = {
+                "sha256": working_sha,
+                "last_commit": last_commit,
+                "error": "git_show_failed",
+            }
+            continue
+        committed_sha = hashlib.sha256(committed.stdout).hexdigest()
         scripts[path] = {
             "sha256": working_sha,
             "last_commit": last_commit,
             "committed_sha256": committed_sha,
-            "uncommitted_changes": committed_sha is not None and committed_sha != working_sha,
+            "uncommitted_changes": committed_sha != working_sha,
         }
     artifacts = {}
     for path in ANALYSIS_ARTIFACTS:
         if os.path.exists(path):
             artifacts[path] = {"sha256": sha256_of_file(path)}
     return {
+        "_lineage_problems": problems,
         "_comment": (
             "사후 분석(통계검정·행동진단) 코드와 산출물의 계보. 원시 실험 "
             "결과(ppo_backtest_files 등)와 달리 분석 정의가 수정되면 "
@@ -289,10 +307,12 @@ def main() -> None:
     # checkout하면 체크섬이 맞는다"는 3.7.6의 서술이 성립하지 않는다.
     # manifest는 커밋 전에 생성되므로 이 경고가 뜨면 커밋 후 재생성해야 한다
     # (2026-10-21 리뷰 - evaluate.py에서 실제로 발생).
+    lineage = manifest["analysis_lineage"]
     dirty = [
-        path for path, info in manifest["analysis_lineage"]["scripts"].items()
+        path for path, info in lineage["scripts"].items()
         if info.get("uncommitted_changes")
     ]
+    lineage_problems = lineage.get("_lineage_problems", [])
 
     print(f"Manifest 저장: {OUTPUT_PATH}")
     print(f"  source_commit_sha: {manifest['git']['source_commit_sha']}")
@@ -300,14 +320,19 @@ def main() -> None:
     if not manifest["git"]["worktree_clean"]:
         print(f"  untracked/modified: {manifest['git']['untracked_or_modified']}")
 
-    if dirty:
+    if lineage_problems or dirty:
         print()
-        print("  [경고] 아래 분석 스크립트에 미커밋 변경이 있어 계보가 불완전합니다.")
+        print("  [오류] 분석 계보를 확정할 수 없습니다.")
+        for msg in lineage_problems:
+            print(f"    - {msg}")
         for path in dirty:
-            print(f"    - {path}")
-        print("  → 변경을 커밋한 뒤 이 스크립트를 다시 실행해 manifest를 확정하세요.")
-    else:
-        print("  분석 계보: 모든 스크립트가 기록된 커밋과 일치")
+            print(f"    - {path}: 미커밋 변경 있음")
+        print()
+        print("  manifest는 저장됐으나 계보가 불완전합니다. 3.7.6의 재현 절차가")
+        print("  성립하려면 위 문제를 해결한 뒤 이 스크립트를 다시 실행하세요.")
+        sys.exit(1)
+
+    print("  분석 계보: 모든 스크립트가 기록된 커밋과 일치")
     print(f"  PPO backtest 파일 수: {len(manifest['ppo_backtest_files'])}")
     print(f"  벤치마크 파일 수: {len(manifest['benchmark_files'])}")
 
