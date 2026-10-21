@@ -79,15 +79,25 @@ def get_git_info() -> dict:
     }
 
 
-def get_package_versions() -> dict:
+def get_package_versions() -> tuple[dict, list[str]]:
+    """실행 중인 인터프리터의 패키지 버전.
+
+    2026-10-21 리뷰: 프로젝트 venv가 아닌 인터프리터로 실행하면 대부분이
+    "not found"로 기록되어 명세가 조용히 퇴행한다(실제 발생). 3.7절이
+    패키지 버전을 재현 근거로 제시하므로, 누락은 계보 문제와 동일하게
+    실패로 처리한다. 반드시 .venv/bin/python으로 실행할 것.
+    """
+    import importlib.metadata as md
+
     versions = {"python": sys.version.split()[0]}
+    missing = []
     for pkg in KEY_PACKAGES:
         try:
-            import importlib.metadata as md
             versions[pkg] = md.version(pkg)
         except Exception:
             versions[pkg] = "not found"
-    return versions
+            missing.append(pkg)
+    return versions, missing
 
 
 def collect_ppo_backtest_manifest(locked: dict) -> dict:
@@ -234,6 +244,8 @@ def main() -> None:
     with open(LOCKED_CANDIDATES_PATH) as f:
         locked = json.load(f)
 
+    package_versions, missing_packages = get_package_versions()
+
     manifest = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "freeze_declaration": (
@@ -241,6 +253,7 @@ def main() -> None:
             "재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트)."
         ),
         "git": get_git_info(),
+        "generated_by_interpreter": sys.executable,
         "freeze_lineage": {
             "_comment": (
                 "실험 동결 커밋과 이 명세 작성 커밋은 다르다 (2026-10-20 리뷰). "
@@ -259,7 +272,7 @@ def main() -> None:
                 "연율화 추적오차, 시드별 배분 저장) 후 진단만 재생성",
             ],
         },
-        "package_versions": get_package_versions(),
+        "package_versions": package_versions,
         "evaluation_config": {
             "cost_rate": locked.get("cost_rate", 0.001),
             "periods_per_year": 24 * 365,
@@ -325,19 +338,24 @@ def main() -> None:
     if not manifest["git"]["worktree_clean"]:
         print(f"  untracked/modified: {manifest['git']['untracked_or_modified']}")
 
-    if lineage_problems or dirty:
+    if lineage_problems or dirty or missing_packages:
         print()
-        print("  [오류] 분석 계보를 확정할 수 없습니다.")
+        print("  [오류] 명세를 확정할 수 없습니다.")
         for msg in lineage_problems:
             print(f"    - {msg}")
         for path in dirty:
             print(f"    - {path}: 미커밋 변경 있음")
+        if missing_packages:
+            print(f"    - 패키지 버전 조회 실패: {', '.join(missing_packages)}")
+            print(f"      (실행 인터프리터: {sys.executable})")
+            print("      프로젝트 venv로 실행해야 합니다: .venv/bin/python")
         print()
-        print("  manifest는 저장됐으나 계보가 불완전합니다. 3.7.6의 재현 절차가")
-        print("  성립하려면 위 문제를 해결한 뒤 이 스크립트를 다시 실행하세요.")
+        print("  manifest는 저장됐으나 불완전합니다. 3.7절의 재현 근거가")
+        print("  성립하려면 위 문제를 해결한 뒤 다시 실행하세요.")
         sys.exit(1)
 
     print("  분석 계보: 모든 스크립트가 기록된 커밋과 일치")
+    print(f"  패키지 버전: {len(KEY_PACKAGES)}개 전부 기록됨")
     print(f"  PPO backtest 파일 수: {len(manifest['ppo_backtest_files'])}")
     print(f"  벤치마크 파일 수: {len(manifest['benchmark_files'])}")
 

@@ -1,8 +1,8 @@
 {
-  "generated_at_utc": "2026-10-21T06:54:00.549435+00:00",
+  "generated_at_utc": "2026-10-21T06:57:31.951534+00:00",
   "freeze_declaration": "10월 3주차 결과 동결. 이 시점 이후 여기 기록된 수치/설정은 재조정하지 않는다 (docs/project_milestone_plan.md 10월 게이트).",
   "git": {
-    "source_commit_sha": "0103785638aa740b26c66862265b51eeed3301f8",
+    "source_commit_sha": "87fb2ec7077305a5dcb54d2bb302514495c17fe9",
     "manifest_commit_note": "manifest.json 자체는 source_commit_sha 다음 커밋에 저장된다. git log --follow results/frozen_summaries/manifest.json 으로 확인 가능.",
     "worktree_clean": false,
     "untracked_or_modified": [
@@ -15,6 +15,7 @@
       "?? docs/weekly_report_2026-08-w1.md"
     ]
   },
+  "generated_by_interpreter": "/Users/jykim/stat_thesis/.venv/bin/python",
   "freeze_lineage": {
     "_comment": "실험 동결 커밋과 이 명세 작성 커밋은 다르다 (2026-10-20 리뷰). experiment_freeze_commit은 학습 결과·성과지표·통계검정 수치가 확정된 시점이고, git.source_commit_sha는 이 manifest가 생성된 시점의 HEAD다. 사후 분석 코드 수정으로 후자만 갱신될 수 있다.",
     "experiment_freeze_commit": "10892a1b65a5454a43e7e90f5c79d063b8d359a7",
@@ -26,18 +27,18 @@
   },
   "package_versions": {
     "python": "3.13.7",
-    "torch": "not found",
-    "stable-baselines3": "not found",
-    "gym": "not found",
-    "gymnasium": "not found",
-    "shimmy": "not found",
-    "pandas": "3.0.3",
+    "torch": "2.13.0",
+    "stable-baselines3": "2.9.0",
+    "gym": "0.26.2",
+    "gymnasium": "1.3.0",
+    "shimmy": "2.0.1",
+    "pandas": "3.0.5",
     "numpy": "2.2.6",
-    "empyrical-reloaded": "not found",
-    "arch": "not found",
-    "quantstats": "not found",
-    "scipy": "not found",
-    "PyPortfolioOpt": "not found"
+    "empyrical-reloaded": "0.5.12",
+    "arch": "8.0.0",
+    "quantstats": "0.0.81",
+    "scipy": "1.18.0",
+    "PyPortfolioOpt": "1.6.0"
   },
   "evaluation_config": {
     "cost_rate": 0.001,
