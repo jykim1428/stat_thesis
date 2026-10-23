@@ -2,8 +2,8 @@
 
 **제출자:** 김준영 (공동연구: 유지, 은아) · **작성일:** 2026-09-28
 **근거 자료:** `docs/thesis_notation_glossary.md`(용어·기호 사전),
-`results/frozen_summaries/manifest.json`(2026-09-08 동결, source_commit_sha
-`10892a1`), `docs/thesis_writing_schedule.md`, `paper/related_work_draft.md`
+`results/frozen_summaries/manifest.json`(2026-09-08 실험 동결,
+freeze_lineage.experiment_freeze_commit `10892a1`), `docs/thesis_writing_schedule.md`, `paper/related_work_draft.md`
 
 ---
 
@@ -68,7 +68,7 @@ Sharpe·Sortino·Calmar·MDD·CAGR·turnover를 **모든 모델과 벤치마크�
 않았고**, 16개 비교 전부 보정 후 유의하지 않았다(최소 p=0.118). MLP와
 Transformer 간 Sharpe 차이의 95% 신뢰구간도 두 국면 모두 0을 포함했다.
 사후 행동 진단 결과 두 정책 모두 관측 변화에 실질적으로 반응하지 않는
-**고정된 목표 비중**을 학습했으며(스텝 간 평균 변화량 4.3×10⁻⁹~8.2×10⁻⁹),
+**고정된 목표 비중**을 학습했으며(시점별 변화량 평균 3.8×10⁻⁸~7.4×10⁻⁸),
 그 수익 경로는 Equal-Weight 전략과 상관계수 0.999 이상으로 거의 동일했다.
 
 본 연구의 기여는 성과 향상이 아니라, **다중 시드·다중 비교 보정·결과 동결을
@@ -336,8 +336,10 @@ FinRL의 `PortfolioOptimizationEnv`를 벤더링해 본 연구 데이터에 연�
 
 ## 3.7 재현성 확보 절차
 
-- **결과 동결(freeze):** 2026-09-08, source_commit_sha `10892a1`
-  (manifest.json 자체는 다음 커밋 `f55b2d3`에 저장), 원시 산출물 **61개 파일의
+- **결과 동결(freeze):** 2026-09-08, 실험 동결 커밋 `10892a1`
+  (manifest의 `freeze_lineage.experiment_freeze_commit`. `source_commit_sha`는
+  명세 생성 시점 HEAD이므로 사후 분석 수정 시 갱신된다)
+  (manifest의 `freeze_lineage.experiment_freeze_commit`), 원시 산출물 **61개 파일의
   SHA-256** 및 패키지 버전 전체를 `results/frozen_summaries/manifest.json`에 기록.
 - **OOS 확인 후 후보·하이퍼파라미터 재조정 금지.** Optuna 자동탐색은
   OOS 결과를 이미 본 상태에서 수행하면 탐색 자체가 오염되므로 본 연구 범위에서
@@ -387,7 +389,7 @@ FinRL의 `PortfolioOptimizationEnv`를 벤더링해 본 연구 데이터에 연�
   상승 국면 **[−0.031, +0.037]**, 조정 국면 **[−0.069, +0.013]** — 두 구간 모두 0 포함.
 - **통계 검정:** 16개 비교 전부 Holm 보정 후 비유의, **최소 p = 0.118**
   (Transformer vs Minimum-Variance, 조정 국면).
-- **행동 진단:** 목표 비중의 스텝 간 평균 변화량 **4.3×10⁻⁹ ~ 8.2×10⁻⁹**
+- **행동 진단:** 목표 비중의 시점별 변화량 평균 **3.8×10⁻⁸ ~ 7.4×10⁻⁸**
   (float32 연산 정밀도 수준) → 사실상 불변. Equal-Weight 대비 순수익률 상관계수
   **0.999 이상**. 드로다운 구간과 평시의 목표 현금 비중이 소수점 6자리까지 동일
   → 방어적 현금 이동을 학습하지 못함.

@@ -2,8 +2,8 @@
 
 **제출자:** 김준영 (공동연구: 유지, 은아) · **작성일:** 2026-09-28
 **근거 자료:** `docs/thesis_notation_glossary.md`(용어·기호 사전),
-`results/frozen_summaries/manifest.json`(2026-09-08 동결, source_commit_sha
-`10892a1`), `docs/thesis_writing_schedule.md`, `paper/related_work_draft.md`
+`results/frozen_summaries/manifest.json`(2026-09-08 실험 동결,
+freeze_lineage.experiment_freeze_commit `10892a1`), `docs/thesis_writing_schedule.md`, `paper/related_work_draft.md`
 
 ---
 
@@ -194,7 +194,8 @@ block bootstrap으로 신뢰구간을 구하고 Holm-Bonferroni로 다중비교�
 
 ## 3.3 결과 동결 및 재현성
 
-2026-09-08 기준으로 모든 수치를 동결했다(source_commit_sha `10892a1`).
+2026-09-08 기준으로 모든 수치를 동결했다(실험 동결 커밋 `10892a1`,
+manifest의 `freeze_lineage.experiment_freeze_commit`).
 원시 산출물 61개 파일의 SHA-256 체크섬과 패키지 버전 전체를
 `results/frozen_summaries/manifest.json`에 기록했으며, 논문 집필 단계에서는
 이 동결 수치만 사용한다.

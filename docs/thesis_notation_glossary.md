@@ -348,7 +348,8 @@ index: 0      1     2      3     4     5      6     7     8
 | quantstats | 0.0.81 |
 
 - **freeze 기준 커밋:** `10892a1` (source_commit_sha)
-  - manifest.json 자체는 다음 커밋(`f55b2d3`)에 저장됨
+  - manifest의 `freeze_lineage.experiment_freeze_commit`이 이 값이다.
+    `git.source_commit_sha`는 명세 생성 시점 HEAD로 사후 분석 수정 시 갱신됨
 - **체크섬 기록 파일 수:** 61개
 
 ---
