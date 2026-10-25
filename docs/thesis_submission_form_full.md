@@ -338,14 +338,15 @@ FinRL의 `PortfolioOptimizationEnv`를 벤더링해 본 연구 데이터에 연�
 
 - **결과 동결(freeze):** 2026-09-08, 실험 동결 커밋 `10892a1`
   (manifest의 `freeze_lineage.experiment_freeze_commit`. `source_commit_sha`는
-  명세 생성 시점 HEAD이므로 사후 분석 수정 시 갱신된다)
-  (manifest의 `freeze_lineage.experiment_freeze_commit`), 원시 산출물 **61개 파일의
-  SHA-256** 및 패키지 버전 전체를 `results/frozen_summaries/manifest.json`에 기록.
+  명세 생성 시점 HEAD이므로 사후 분석 수정 시 갱신된다). 원시 산출물
+  **61개 파일의 SHA-256** 및 패키지 버전 전체를
+  `results/frozen_summaries/manifest.json`에 기록.
 - **OOS 확인 후 후보·하이퍼파라미터 재조정 금지.** Optuna 자동탐색은
   OOS 결과를 이미 본 상태에서 수행하면 탐색 자체가 오염되므로 본 연구 범위에서
   제외하고 향후 연구로 이관했다.
-- **독립 리뷰를 통한 교차 검증:** 통계량 정의, gross/net 일관성,
-  bootstrap 결정성 등을 반복 검증했다.
+- **AI 보조 코드 검토 및 재실행 검증:** 통계량 정의, gross/net 일관성,
+  bootstrap 결정성 등을 반복 검증했다. 독립적인 인간 연구자의 동료 검증이
+  아니며, 도구가 제기한 사항을 저자가 재실행으로 확인한 절차다.
 - **공용 출력 스펙:** 모든 전략이 동일한 backtest 출력 형식과 평가 모듈을 사용한다.
 
 ---

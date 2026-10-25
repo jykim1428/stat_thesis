@@ -17,7 +17,8 @@ Obsidian에서 **이 폴더(`obsidian/`)를 볼트로 열면** 된다.
 ## 원칙
 
 - 이 볼트는 **요약·연결용**. 정본은 `docs/`, `results/`, `paper/`
-- 모든 수치는 frozen 산출물에서 검증함 (`source_commit_sha = 10892a1`)
+- 모든 수치는 frozen 산출물에서 검증함
+  (실험 동결 커밋 `10892a1` = `freeze_lineage.experiment_freeze_commit`)
 - 숫자 수정이 필요하면 볼트가 아니라 원본을 확인할 것
 
 ## 여는 법

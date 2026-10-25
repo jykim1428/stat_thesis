@@ -22,7 +22,7 @@ manifest의 `freeze_lineage.experiment_freeze_commit`이 이 동결 커밋이고
 이 문서는 9월 4주차~10월 3주차 walk-forward validation 실험에서 확정된
 검증 결과를 논문 Results/Discussion 절에 바로 쓸 수 있는 문장 단위로
 정리한 것이다. 여기 있는 문장은 실제 코드 실행으로 검증됐고, 여러 차례
-독립 리뷰(코덱스, 총 6라운드)를 거쳐 정확성을 확인했다 — **수치나 통계적
+AI 보조 코드 검토(총 6라운드)와 재실행 검증을 거쳐 정확성을 확인했다 — **수치나 통계적
 주장을 바꾸지 말고, 학술적 문체로 다듬거나 문단 흐름을 만드는 데만
 활용할 것.** 숫자를 수정해야 할 필요가 있으면 준영에게 먼저 확인할 것
 (재계산 없이 문구만 바꾸는 게 아니라면).
@@ -157,7 +157,7 @@ manifest의 `freeze_lineage.experiment_freeze_commit`이 이 동결 커밋이고
 ## 6. 인용 근거 파일 (필요시 재확인용)
 
 - **freeze manifest(가장 먼저 확인할 것)**: `results/frozen_summaries/manifest.json`
-  — source_commit_sha, 패키지 버전, cost_rate/연율화 상수, seed 확장
+  — 실험 동결 커밋·분석 계보, 패키지 버전, cost_rate/연율화 상수, seed 확장
   이력, 원시 파일 61개의 SHA-256 전부 포함
 - 후보 선택 및 확정 설정: `configs/walk_forward_locked_candidates.json`
   (selection_rule, seeds_note_protocol_status에 5-seed가 post-hoc
@@ -177,8 +177,9 @@ manifest의 `freeze_lineage.experiment_freeze_commit`이 이 동결 커밋이고
 
 ## 7. 재현 방법 (숫자를 의심하게 되면 이 순서로 직접 확인)
 
-1. `results/frozen_summaries/manifest.json`에서 `source_commit_sha` 확인
-2. `git checkout <source_commit_sha>`로 그 시점 코드로 이동 (또는 그냥
+1. `results/frozen_summaries/manifest.json`에서 분석 계보 확인
+   (`analysis_lineage.scripts[*].last_commit` — 스크립트마다 다를 수 있음)
+2. 해당 커밋으로 분석 코드를 맞춘다 (또는 그냥
    최신 main에서 확인해도 됨 — freeze 이후 이 파일들은 변경되지 않음)
 3. `pip install -r requirements.txt`로 manifest에 기록된 패키지 버전 설치
 4. 아래 스크립트를 순서대로 실행하면 `results/frozen_summaries/`의

@@ -347,7 +347,7 @@ index: 0      1     2      3     4     5      6     7     8
 | PyPortfolioOpt | 1.6.0 |
 | quantstats | 0.0.81 |
 
-- **freeze 기준 커밋:** `10892a1` (source_commit_sha)
+- **실험 동결 커밋:** `10892a1` (`freeze_lineage.experiment_freeze_commit`)
   - manifest의 `freeze_lineage.experiment_freeze_commit`이 이 값이다.
     `git.source_commit_sha`는 명세 생성 시점 HEAD로 사후 분석 수정 시 갱신됨
 - **체크섬 기록 파일 수:** 61개
@@ -365,7 +365,8 @@ index: 0      1     2      3     4     5      6     7     8
 7. **국면을 "교차검증 fold"로 서술** — 2-fold 전진 평가다 (§5)
 8. **`choppy_2025`를 "횡보"로 표기** — 조정이다 (§2.2)
 9. **버그 수정 이력을 고백조로 서술** — 정의를 명확히 서술하는 형태로 쓰고,
-   검증 과정은 3.7에서 "독립 리뷰를 통한 교차 검증"으로 한 번만 집계
+   검증 과정은 3.7에서 "AI 보조 코드 검토 및 재실행 검증"으로 한 번만 집계
+   (⚠️ "독립 검토"로 쓰면 인간 동료 검증으로 오인됨)
 10. **숫자 재계산·스크립트 재실행** — freeze 위반 (§0)
 
 ---
