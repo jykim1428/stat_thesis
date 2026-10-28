@@ -177,18 +177,73 @@ AI 보조 코드 검토(총 6라운드)와 재실행 검증을 거쳐 정확성�
 
 ## 7. 재현 방법 (숫자를 의심하게 되면 이 순서로 직접 확인)
 
-1. `results/frozen_summaries/manifest.json`에서 분석 계보 확인
-   (`analysis_lineage.scripts[*].last_commit` — 스크립트마다 다를 수 있음)
-2. 해당 커밋으로 분석 코드를 맞춘다 (또는 그냥
-   최신 main에서 확인해도 됨 — freeze 이후 이 파일들은 변경되지 않음)
-3. `pip install -r requirements.txt`로 manifest에 기록된 패키지 버전 설치
-4. 아래 스크립트를 순서대로 실행하면 `results/frozen_summaries/`의
-   모든 CSV/JSON이 동일하게 재생성된다(재학습 없이도 통계/그림 스크립트는
-   재실행 가능, PPO 재학습이 필요한 것은 `walk_forward_orchestrator.py`뿐):
-   - `experiments/walk_forward_statistical_tests.py` (결정론적 seed,
-     재실행해도 동일한 CI/p-value가 나옴 — 검증됨)
-   - `experiments/walk_forward_visualizations.py`
-   - `experiments/walk_forward_behavior_diagnostics.py`
-   - `experiments/walk_forward_freeze_manifest.py` (manifest 자체 재생성)
-5. 결과가 이 문서의 숫자와 다르면 재계산하지 말고 준영에게 알릴 것 —
-   freeze 이후 코드가 바뀌었다는 뜻이라 원인을 먼저 찾아야 한다.
+목적에 따라 절차가 다르다. **대부분의 경우 A만 하면 된다.**
+
+### A. 동결 파일의 무결성 검증 (가장 먼저, 재실행 불필요)
+
+`results/frozen_summaries/`의 파일이 손상·교체되지 않았는지만 확인한다.
+
+```
+manifest.json의 체크섬과 실제 파일을 대조
+  - ppo_backtest_files (40), benchmark_files (8),
+    frozen_summary_files (12), raw_input_files (1) = 61개
+```
+
+체크섬이 전부 일치하면 **이 문서의 숫자는 그대로 유효하다.** 분석을
+재실행할 필요가 없다.
+
+### B. 저장된 백테스트로 분석만 재실행
+
+통계검정·행동진단·그림을 다시 만들어 보고 싶을 때. **PPO 재학습은
+하지 않는다.**
+
+1. manifest의 `analysis_lineage.scripts[*].last_commit` 확인 —
+   **스크립트마다 커밋이 다르다** (동결 이후 분석 코드가 수정된 이력이
+   있기 때문. 3.7.1 참고)
+2. 각 스크립트를 그 커밋 기준으로 맞춘다. 현재 main의 파일 체크섬이
+   manifest와 일치한다면 main을 그대로 써도 된다 — 다만 이는 "동결 이후
+   변경이 없었기 때문"이 아니라 "지금 상태가 기록과 같기 때문"이다
+3. **프로젝트 가상환경**으로 실행한다 (`.venv/bin/python`).
+   다른 인터프리터로 돌리면 패키지 버전이 기록되지 않는다
+4. 실행:
+
+   | 스크립트 | 출력 위치 |
+   |---|---|
+   | `walk_forward_statistical_tests.py` | `results/walk_forward_statistical_tests/` |
+   | `walk_forward_behavior_diagnostics.py` | `results/walk_forward_behavior_diagnostics/` |
+   | `walk_forward_visualizations.py` | `results/walk_forward_figures/` |
+   | `walk_forward_freeze_manifest.py` | `results/frozen_summaries/manifest.json` |
+
+> [!warning] 이 스크립트들은 동결 폴더를 갱신하지 않는다
+> `frozen_summaries/`의 요약 CSV 11개는 **어떤 스크립트도 재생성하지
+> 않는다**(동결 시점에 수동 보존한 사본). 같은 폴더의
+> `statistical_tests.json`도 동결 사본이며, 통계검정 스크립트는
+> 자기 출력 폴더에 쓰고 이 사본을 갱신하지 않는다. 따라서 B를 실행해도
+> 동결 파일은 그대로이며, 비교하려면 새 출력과 동결 사본을 **직접
+> 대조**해야 한다.
+>
+> `manifest.json`은 생성 시각과 당시 HEAD를 기록하므로 재생성본이
+> 바이트 단위로 같지 않다. 체크섬·계보 항목만 비교할 것.
+
+### C. 원천 데이터부터 전체 재현
+
+PPO 재학습을 포함한 완전 재현. `walk_forward_orchestrator.py`가 필요하다.
+
+- 원천 DB(`data/raw/crypto_market_features.db`)와 학습된 모형 파일은
+  **저장소에 포함되어 있지 않다**(용량). manifest의 체크섬은 무결성
+  확인용이지 파일을 복원하지 못한다
+- 학습 시드는 고정되어 있으나 결정론적 연산 모드를 강제하지 않았으므로,
+  다른 하드웨어·라이브러리에서는 통계적으로 유사하되 비트 단위로 동일한
+  결과가 나오지 않을 수 있다
+
+### 결과가 이 문서의 숫자와 다를 때
+
+재계산하지 말고 **원인부터 확인**한다. 다음 순서로 좁힌다.
+
+1. **입력** — 백테스트 CSV와 원천 DB의 체크섬이 manifest와 일치하는가
+2. **코드** — 실행한 스크립트의 체크섬이 `analysis_lineage` 기록과 같은가
+3. **환경** — `.venv`로 실행했는가, 패키지 버전이 manifest와 같은가
+4. **경로** — 동결 사본을 본 것인지 새 출력을 본 것인지 (B의 경고 참고)
+
+위를 전부 확인해도 다르면 준영에게 알릴 것. "freeze 이후 코드가 바뀌었다"는
+여러 가능한 원인 중 하나일 뿐이다.
