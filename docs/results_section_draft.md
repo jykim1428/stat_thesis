@@ -158,7 +158,7 @@ AI 보조 코드 검토(총 6라운드)와 재실행 검증을 거쳐 정확성�
 
 - **freeze manifest(가장 먼저 확인할 것)**: `results/frozen_summaries/manifest.json`
   — 실험 동결 커밋·분석 계보, 패키지 버전, cost_rate/연율화 상수, seed 확장
-  이력, 원시 산출물 61개 파일의 SHA-256 전부 포함
+  이력, 검증 대상 파일 61개의 SHA-256 전부 포함
 - 후보 선택 및 확정 설정: `configs/walk_forward_locked_candidates.json`
   (selection_rule, seeds_note_protocol_status에 5-seed가 post-hoc
   extension이라는 사실이 정확히 기록되어 있음 — Methods 절 작성 시
@@ -181,7 +181,9 @@ AI 보조 코드 검토(총 6라운드)와 재실행 검증을 거쳐 정확성�
 
 ### A. 동결 파일의 무결성 검증 (가장 먼저, 재실행 불필요)
 
-`results/frozen_summaries/`의 파일이 손상·교체되지 않았는지만 확인한다.
+manifest에 기록된 61개 파일의 무결성을 확인한다. 대상은
+`frozen_summaries/`에 한정되지 않고 백테스트·모형·벤치마크 디렉터리와
+원천 DB까지 포함한다.
 
 ```
 manifest.json의 체크섬과 실제 파일을 대조
