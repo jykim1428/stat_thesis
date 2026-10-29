@@ -10,7 +10,7 @@
 **🚩 2026-09-08부로 아래 모든 수치는 동결(freeze)됐다.** **실험 동결 커밋**
 `10892a1`(학습 결과·성과지표·통계검정이 확정된 커밋) 기준이며,
 `results/frozen_summaries/manifest.json`에 재현에 필요한 모든 메타데이터
-(체크섬 61개, 패키지 버전, 평가 설정, seed 확장 이력)가 기록되어 있다.
+(체크섬 61건, 패키지 버전, 평가 설정, seed 확장 이력)가 기록되어 있다.
 manifest의 `freeze_lineage.experiment_freeze_commit`이 이 동결 커밋이고,
 `git.source_commit_sha`는 명세가 생성된 시점의 HEAD이므로 사후 분석
 코드가 수정되면 갱신된다 — 두 값은 다를 수 있다.
@@ -158,7 +158,7 @@ AI 보조 코드 검토(총 6라운드)와 재실행 검증을 거쳐 정확성�
 
 - **freeze manifest(가장 먼저 확인할 것)**: `results/frozen_summaries/manifest.json`
   — 실험 동결 커밋·분석 계보, 패키지 버전, cost_rate/연율화 상수, seed 확장
-  이력, 원시 파일 61개의 SHA-256 전부 포함
+  이력, 결과 파일 41개와 모형 아카이브 20개의 SHA-256(총 61건) 전부 포함
 - 후보 선택 및 확정 설정: `configs/walk_forward_locked_candidates.json`
   (selection_rule, seeds_note_protocol_status에 5-seed가 post-hoc
   extension이라는 사실이 정확히 기록되어 있음 — Methods 절 작성 시
@@ -185,8 +185,9 @@ AI 보조 코드 검토(총 6라운드)와 재실행 검증을 거쳐 정확성�
 
 ```
 manifest.json의 체크섬과 실제 파일을 대조
-  - ppo_backtest_files (40), benchmark_files (8),
-    frozen_summary_files (12), raw_input_files (1) = 61개
+  - ppo_backtest_files: 20개 항목 (백테스트 CSV 20 + 모형 .zip 20 = 40)
+  - benchmark_files 8, frozen_summary_files 12, raw_input_files 1
+  - 합계 = 결과 파일 41개 + 모형 아카이브 20개 = 체크섬 61건
 ```
 
 체크섬이 전부 일치하면 **이 문서의 숫자는 그대로 유효하다.** 분석을
