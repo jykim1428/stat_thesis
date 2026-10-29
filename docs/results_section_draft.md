@@ -158,7 +158,7 @@ AI 보조 코드 검토(총 6라운드)와 재실행 검증을 거쳐 정확성�
 
 - **freeze manifest(가장 먼저 확인할 것)**: `results/frozen_summaries/manifest.json`
   — 실험 동결 커밋·분석 계보, 패키지 버전, cost_rate/연율화 상수, seed 확장
-  이력, 결과 파일 41개와 모형 아카이브 20개의 SHA-256(총 61건) 전부 포함
+  이력, 원시 산출물 61개 파일의 SHA-256 전부 포함
 - 후보 선택 및 확정 설정: `configs/walk_forward_locked_candidates.json`
   (selection_rule, seeds_note_protocol_status에 5-seed가 post-hoc
   extension이라는 사실이 정확히 기록되어 있음 — Methods 절 작성 시
@@ -185,13 +185,25 @@ AI 보조 코드 검토(총 6라운드)와 재실행 검증을 거쳐 정확성�
 
 ```
 manifest.json의 체크섬과 실제 파일을 대조
-  - ppo_backtest_files: 20개 항목 (백테스트 CSV 20 + 모형 .zip 20 = 40)
+  - ppo_backtest_files: 20개 항목 — 항목마다 백테스트 CSV와 모형 .zip
+    두 파일의 해시를 담으므로 파일 40개에 해당
   - benchmark_files 8, frozen_summary_files 12, raw_input_files 1
-  - 합계 = 결과 파일 41개 + 모형 아카이브 20개 = 체크섬 61건
+  - 합계 = 서로 다른 파일 61개, 체크섬 61건 (40+8+12+1)
 ```
 
-체크섬이 전부 일치하면 **이 문서의 숫자는 그대로 유효하다.** 분석을
-재실행할 필요가 없다.
+체크섬이 전부 일치하면 **이 파일들이 동결 당시와 동일함이 확인된다.**
+분석을 재실행할 필요가 없다.
+
+> [!note] 체크섬이 보장하는 범위
+> 체크섬은 파일이 기록 당시와 **같다는 것만** 증명한다. 계산 방법이
+> 타당한지, 논문의 해석이 옳은지는 증명하지 않는다 — 그쪽은 3.6의
+> 지표 정의와 검정 설계를 직접 검토해야 한다.
+
+경로는 manifest에 별도 필드로 저장돼 있지 않지만, 항목의
+`policy/fold/candidate/seed` 필드로 생성기와 같은 규칙
+(`walk_forward_freeze_manifest.py`의 `collect_ppo_backtest_manifest`,
+`collect_benchmark_manifest`)을 따라 구성하면 61건 전부 자동 대조할 수
+있다.
 
 ### B. 저장된 백테스트로 분석만 재실행
 

@@ -350,7 +350,8 @@ index: 0      1     2      3     4     5      6     7     8
 - **실험 동결 커밋:** `10892a1` (`freeze_lineage.experiment_freeze_commit`)
   - manifest의 `freeze_lineage.experiment_freeze_commit`이 이 값이다.
     `git.source_commit_sha`는 명세 생성 시점 HEAD로 사후 분석 수정 시 갱신됨
-- **체크섬 기록 건수:** 61건 (결과 파일 41개 + 학습 모형 아카이브 20개)
+- **체크섬 기록:** 61개 파일, 61건 (백테스트 20 + 모형 .zip 20 +
+  벤치마크 8 + 요약 12 + 원천 DB 1)
 
 ---
 
